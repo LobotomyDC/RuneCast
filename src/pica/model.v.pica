@@ -1,0 +1,154 @@
+; shader for game models and terrain
+
+; uniforms
+.fvec scroll_texture
+
+.fvec model[4], projection_view_model[4]
+
+.fvec light_ambience_diffuse_fog
+.bool unlit
+.fvec light_direction
+
+.fvec opacity
+
+.bool cull_front
+
+; constants
+.constf base_const(0.0, 1.0, -1.0, -0.5)
+.constf farts(255.0, 255.0, 255.0, 255.0)
+
+.alias zeros base_const.xxxx
+.alias ones base_const.yyyy
+
+; -255
+.constf invert_index(-255.0, -255.0, -255.0, -255.0)
+
+; 1/256
+.constf byte_reciprocal(0.003906, 0.003906, 0.003906, 0.003906)
+
+;.constf use_gouraud(12345.0, 12345.0, 12345.0, 12345.0)
+.constf use_gouraud(32766.0, 32766.0, 32766.0, 32766.0)
+
+; outputs
+.out out_position position
+.out out_colour color
+.out out_texture_position texcoord0
+
+; inputs
+.in in_position v0
+.in in_normal v1
+.in in_lighting v2
+.in in_front_colour v3
+.in in_front_texture v4
+.in in_back_colour v5
+.in in_back_texture v6
+
+.proc main
+    ; r0.xyz = in_position.xyz, w = 1.0f
+    mov r0.xyz, in_position
+    mov r0.w, ones
+
+    ; gl_Position = projection_view_model * vec4(position, 1.0);
+    dp4 r7.x, projection_view_model[0], r0
+    dp4 r7.y, projection_view_model[1], r0
+    dp4 r7.z, projection_view_model[2], r0
+    dp4 r7.w, projection_view_model[3], r0
+
+    ; r1 = vertex_colour
+    mov r1, ones
+
+    ; r2 = gradient_index
+    mov r2, light_ambience_diffuse_fog.xxxx
+
+    ; r3 = intensity
+    ; mov r3, in_lighting.yyyy
+
+    ifu unlit
+        cmp use_gouraud, ge, ge, in_lighting.xxxx
+
+        ifc cmp.x
+            mov r3, in_lighting.xxxx
+        .else
+            mov r3, in_lighting.yyyy
+        .end
+    .else
+        ; r4 = model_normal
+        mov r4, ones
+
+        dp3 r4.x, model[0], in_normal.xyz
+        dp3 r4.y, model[1], in_normal.xyz
+        dp3 r4.z, model[2], in_normal.xyz
+
+        ; r5 = dot(model_normal, light_direction)
+        dp3 r5, light_direction.xyz, r4
+
+        ; r6 = light_diffuse * normal_magnitude
+        mul r6, light_ambience_diffuse_fog.yyyy, in_normal.wwww
+
+        ; r6 = 1/r6
+        rcp r6, r6
+
+        ; intensity = dot(light_direction, model_normal) /
+        ;     (light_diffuse * normal_magnitude)
+        mul r3, r5, r6
+    .end
+
+    ifu cull_front
+        ; add intensity to gradient index
+        add r2, r2, r3
+
+        mov r1.rgb, in_back_colour.rgb
+        mov r8, in_back_texture.xy
+    .else
+        ; add -intensity to gradient index
+        mul r3, base_const.zzzz, r3
+        add r2, r2, r3
+
+        mov r1.rgb, in_front_colour.rgb
+        mov r8, in_front_texture.xy
+    .end
+
+    ; if (0 > vertex_texture_position.x)
+    cmp base_const.xxxx, gt, gt, r8.xxxx
+
+    ifc cmp.x
+        mul r8.xxyy, base_const.z, r8
+        add r8, scroll_texture, r8
+    .end
+
+    mov out_texture_position, r8
+
+    ; if (gl_Position.z > fog_distance)
+    cmp light_ambience_diffuse_fog.zzzz, lt, lt, r7.zzzz
+
+    ifc cmp.x
+        mov r2, farts
+    .end
+
+    ; gradient_index = max(0, min(gradient_index, 255));
+    min r2, farts.xxxx, r2
+    max r2, base_const.xxxx, r2
+
+    ; gradient_index = 255 - gradient_index
+    add r2, invert_index, r2
+    mul r2, base_const.zzzz, r2
+
+    ; gradient_index = gradient_index / 256
+    mul r2, byte_reciprocal, r2
+    mov r2.w, ones
+
+    ; gradient_index = gradient_index * gradient_index
+    mul r2, r2, r2
+    mov r2.w, ones
+
+    ; vertex_colour * gradient_index
+    mul r1, r1, r2
+
+    ; vertex_colour * opacity
+    mul r1, opacity, r1
+
+    mov out_position, r7
+    mov out_colour, r1
+
+    end
+.end
