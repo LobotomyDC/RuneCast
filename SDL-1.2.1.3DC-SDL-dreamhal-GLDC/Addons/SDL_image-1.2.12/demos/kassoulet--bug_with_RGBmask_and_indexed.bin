@@ -1,0 +1,27 @@
+Index: src/video/SDL_pixels.c
+===================================================================
+RCS file: /home/sdlweb/libsdl.org/cvs/SDL12/src/video/SDL_pixels.c,v
+retrieving revision 1.13
+diff -u -r1.13 SDL_pixels.c
+--- src/video/SDL_pixels.c	12 Jan 2005 19:38:24 -0000	1.13
++++ src/video/SDL_pixels.c	1 Mar 2005 23:13:23 -0000
+@@ -61,7 +61,7 @@
+ 	/* Set up the format */
+ 	format->BitsPerPixel = bpp;
+ 	format->BytesPerPixel = (bpp+7)/8;
+-	if ( Rmask || Bmask || Gmask ) { /* Packed pixels with custom mask */
++	if ( bpp>8 && (Rmask || Bmask || Gmask) ) { /* Packed pixels with custom mask */
+ 		format->palette = NULL;
+ 		format->Rshift = 0;
+ 		format->Rloss = 8;
+@@ -112,7 +112,9 @@
+ 		format->Rmask = ((0xFF>>format->Rloss)<<format->Rshift);
+ 		format->Gmask = ((0xFF>>format->Gloss)<<format->Gshift);
+ 		format->Bmask = ((0xFF>>format->Bloss)<<format->Bshift);
+-	} else {			/* Palettized mode */
++	}
++ 	if ( bpp <= 8 ) {
++		/* Palettized mode */
+ 		int i, ncolors = 1;
+ 		for ( i = 0; i < bpp; ++i ) {
+ 			ncolors *= 2;

@@ -1,0 +1,42 @@
+ABOUT
+~~~~~
+
+    These are some simple programs that demonstrate how to program using SDL_image.
+
+
+COMPILATION
+~~~~~~~~~~~
+
+    run "make"
+
+THE PROGRAMS
+~~~~~~~~~~~~
+
+viewimage.c
+    demonstrates:
+        IMG_Load
+
+    try:
+        ./viewimage lena.bmp
+        ./viewimage lena.gif
+        ./viewimage lena.jpg
+        etc...
+
+    usage:
+        press any key to quit, or close the window as usual.
+        try loading lena.xbm to see a failure.
+
+formats.c
+    demonstrates:
+        IMG_Load
+        supported file formats
+
+    try:
+        ./formats
+    
+    usage:
+        when run, it will try loading files of the possibly supported formats in
+        SDL_image.  then it tells you whether they can be loaded or not.
+        if you see one that cannot be loaded, either the image file is corrupt,
+        or you need to recompile SDL_image and make sure it supports that
+        image format.
