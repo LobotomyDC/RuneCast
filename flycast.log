@@ -1,0 +1,40 @@
+00:00:000 sdl/sdl.cpp:734 N[RENDERER]: Monitor refresh rate: 60 Hz (3840 x 2160)
+00:00:011 ui/gui.cpp:330 N[RENDERER]: Screen DPI is 52, size 1536 x 1134. Scaling by 1.00
+00:00:250 rend/gles/gles.cpp:637 N[RENDERER]: OpenGL version 4.6
+00:00:250 rend/gles/gles.cpp:638 N[RENDERER]: Vendor 'AMD' Renderer 'AMD Radeon RX 7900 XTX (radeonsi, navi31, LLVM 17.0.6, DRM 3.57, 6.8.0-51-generic)' Version '4.6 (Core Profile) Mesa 24.0.9-0ubuntu0.3'
+00:00:257 sdl/sdl_gamepad.h:179 N[INPUT]: SDL: Opened joystick 0 on port 0: 'Retro-bit Controller' unique_id=sdl_joystick_0
+00:00:257 sdl/sdl_gamepad.h:179 N[INPUT]: SDL: Opened joystick 1 on port 1: 'Sony PLAYSTATION(R)3 Controller' unique_id=sdl_joystick_1
+00:00:271 hw/mem/addrspace.cpp:431 N[VMEM]: Info: nvmem is enabled
+00:00:300 hw/mem/addrspace.cpp:463 N[VMEM]: BASE 0x795492e10000 RAM(32 MB) 0x79549ee10000 VRAM64(8 MB) 0x795496e10000 ARAM(2 MB) 0x7954b2e10000
+00:00:316 hw/mem/addrspace.cpp:431 N[VMEM]: Info: nvmem is enabled
+00:00:332 hw/mem/addrspace.cpp:463 N[VMEM]: BASE 0x795492e10000 RAM(32 MB) 0x79549ee10000 VRAM64(8 MB) 0x795496e10000 ARAM(2 MB) 0x7954b2e10000
+00:00:337 emulator.cpp:56 N[BOOT]: Game ID is [IND-127325]
+00:00:341 emulator.cpp:581 N[BOOT]: Did not load BIOS, using reios
+00:00:341 emulator.cpp:56 N[BOOT]: Game ID is [IND-127325]
+00:00:345 sdl/sdl_gamepad.h:573 N[INPUT]: Resetting SDL gamepad to default: 0 1
+00:00:370 reios/reios.cpp:622 N[REIOS]: -----------------
+00:00:370 reios/reios.cpp:623 N[REIOS]: REIOS: Booting up
+00:00:370 reios/reios.cpp:624 N[REIOS]: -----------------
+00:18:165 sdl/sdl_gamepad.h:573 N[INPUT]: Resetting SDL gamepad to default: 0 1
+00:18:187 sdl/sdl_gamepad.h:425 N[INPUT]: SDL: Joystick 'Retro-bit Controller' on port 2 disconnected
+00:18:206 sdl/sdl_gamepad.h:425 N[INPUT]: SDL: Joystick 'Sony PLAYSTATION(R)3 Controller' on port 0 disconnected
+00:00:000 sdl/sdl.cpp:734 N[RENDERER]: Monitor refresh rate: 60 Hz (3840 x 2160)
+00:00:013 ui/gui.cpp:330 N[RENDERER]: Screen DPI is 52, size 1536 x 1134. Scaling by 1.00
+00:00:257 rend/gles/gles.cpp:637 N[RENDERER]: OpenGL version 4.6
+00:00:257 rend/gles/gles.cpp:638 N[RENDERER]: Vendor 'AMD' Renderer 'AMD Radeon RX 7900 XTX (radeonsi, navi31, LLVM 17.0.6, DRM 3.57, 6.8.0-51-generic)' Version '4.6 (Core Profile) Mesa 24.0.9-0ubuntu0.3'
+00:00:263 sdl/sdl_gamepad.h:179 N[INPUT]: SDL: Opened joystick 0 on port 0: 'Retro-bit Controller' unique_id=sdl_joystick_0
+00:00:264 sdl/sdl_gamepad.h:179 N[INPUT]: SDL: Opened joystick 1 on port 1: 'Sony PLAYSTATION(R)3 Controller' unique_id=sdl_joystick_1
+00:00:273 hw/mem/addrspace.cpp:431 N[VMEM]: Info: nvmem is enabled
+00:00:303 hw/mem/addrspace.cpp:463 N[VMEM]: BASE 0x727c78210000 RAM(32 MB) 0x727c84210000 VRAM64(8 MB) 0x727c7c210000 ARAM(2 MB) 0x727c98210000
+00:00:319 hw/mem/addrspace.cpp:431 N[VMEM]: Info: nvmem is enabled
+00:00:335 hw/mem/addrspace.cpp:463 N[VMEM]: BASE 0x727c78210000 RAM(32 MB) 0x727c84210000 VRAM64(8 MB) 0x727c7c210000 ARAM(2 MB) 0x727c98210000
+00:00:339 emulator.cpp:56 N[BOOT]: Game ID is [IND-127325]
+00:00:344 emulator.cpp:581 N[BOOT]: Did not load BIOS, using reios
+00:00:344 emulator.cpp:56 N[BOOT]: Game ID is [IND-127325]
+00:00:348 sdl/sdl_gamepad.h:573 N[INPUT]: Resetting SDL gamepad to default: 0 1
+00:00:367 reios/reios.cpp:622 N[REIOS]: -----------------
+00:00:367 reios/reios.cpp:623 N[REIOS]: REIOS: Booting up
+00:00:367 reios/reios.cpp:624 N[REIOS]: -----------------
+00:29:071 sdl/sdl_gamepad.h:573 N[INPUT]: Resetting SDL gamepad to default: 0 1
+00:29:092 sdl/sdl_gamepad.h:425 N[INPUT]: SDL: Joystick 'Retro-bit Controller' on port 2 disconnected
+00:29:111 sdl/sdl_gamepad.h:425 N[INPUT]: SDL: Joystick 'Sony PLAYSTATION(R)3 Controller' on port 0 disconnected
