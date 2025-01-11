@@ -62,8 +62,8 @@ distribute with `./cache` directory.
 ### run requirements
 
 -A Sega Dreamcast
-OR
--A Linux Computer
+
+-A computer with the KallistiOS build environment
 
 ## usage
 
