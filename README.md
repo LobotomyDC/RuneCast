@@ -5,16 +5,10 @@ protocols. original mudclient204 java source refactored by v0rtex/xetr0v and
 Isaac Eggsampler. compatible with [rscsundae](https://git.sr.ht/~stormy/rscsundae),
 [openrsc](https://rsc.vet/) and 2003scape.
 
-prominent new features include:
-* native ports for 3ds, switch, wii, web browser and desktop (NEW: SEGA DREAMCAST!)
-* opengl/webgl renderer with customizable (TODO: Integrate GLdc)
-[field of view](https://en.wikipedia.org/wiki/Field_of_view)
-* dynamic resizable mode with interface scaling and new minimum resolution of
-320x240
-* 3D model ground items based on runescape 2 beta models
-* [runescape classic wiki](https://classic.runescape.wiki/) button
-* bank interface with scrollbar and search
-* [...and more! ](https://github.com/2003scape/rsc-c#options)
+Prominent new features include:
+* native port for Sega Dreamcast!
+* Keyboard and Mouse Support!
+* It doesn't run on stock hardware (yet)!
 
 ### Controls (Dreamcast):
 
