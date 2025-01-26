@@ -59,28 +59,9 @@ distribute with `./cache` directory.
 
 -A computer with the KallistiOS build environment
 
-## usage
-
-arguments:
-* `[members]`
-    * pass any value other than "members" to load a free to play configuration
-* `[ip address]`
-    * an IPv4 address where the RSC177/204 compatible server is hosted
-* `[port]`
-    * network port number (e.g. 43594)
-* `[RSA exponent]`
-* `[RSA modulus]`
-    * these two are used together to encrypt passwords, unique to each server.
-    they must be converted to a hexadecimal representation
-    [0-padded to a multiple of eight characters](https://github.com/kokke/tiny-bignum-c/issues/14)
-
 ## Credits
 * @Bruceleeto for the initial porting attempt, helping me get started with a makefile, as well as a few pointers I probably should have figured out by reading the documentation
 * The Simulant.dev and OpenRSC Discord Servers
-
-for the desktop version, these are passed as command-line arguments. on the
-web they're passed in the URL hash separated by commas
-(`http://localhost:1337/mudclient.html#free,127.0.0.1`).
 
 ## options
 
