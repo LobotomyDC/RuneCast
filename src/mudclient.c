@@ -1,5 +1,5 @@
 #include "mudclient.h"
-
+#include <kos.h>
 #ifdef EMSCRIPTEN
 /* clang doesn't know what triple equals is, understandably */
 /* clang-format off */
@@ -65,6 +65,7 @@ int last_canvas_check = 0;
 
 mudclient *global_mud = NULL;
 #endif
+KOS_INIT_FLAGS(INIT_DEFAULT | INIT_NET);
 
 int mudclient_finger_1_x = 0;
 int mudclient_finger_1_y = 0;
