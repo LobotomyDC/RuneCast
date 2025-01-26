@@ -34,7 +34,7 @@
 #endif
 
 #ifndef NO_RSA
-#include "rsa.h" // Include rsa-tiny header
+#include "lib/rsa/rsa.h"
 #endif
 
 #if !defined(WIN32) && !defined(WII)
@@ -46,6 +46,13 @@
 
 #define PACKET_BUFFER_LENGTH 5000
 
+/*extern char *SPOOKY_THREAT;
+extern int THREAT_LENGTH;
+
+extern int OPCODE_ENCRYPTION[];
+
+int get_client_opcode_friend(int opcode);*/
+
 typedef struct PacketStream PacketStream;
 
 #include "mudclient.h"
@@ -55,36 +62,44 @@ typedef struct PacketStream PacketStream;
 void init_packet_stream_global(void);
 #endif
 
-// PacketStream structure
 struct PacketStream {
-    int socket;                     // Network socket
-    int closed;                     // Flag for stream closure
-    int delay;                      // Delay counter
-    int length;                     // Length of current packet
-    int max_read_tries;             // Max number of read retries
-    int8_t packet_data[PACKET_BUFFER_LENGTH]; // Packet buffer
-    int packet_end;                 // End of the current packet
-    int packet_max_length;          // Max packet length
-    int packet_start;               // Start of the current packet
-    int read_tries;                 // Number of read retries
-    int socket_exception;           // Flag for socket exception
-    char *socket_exception_message; // Exception message
-    int8_t available_buffer[PACKET_BUFFER_LENGTH]; // Available buffer
-    int available_length;           // Length of available data
-    int available_offset;           // Offset in available buffer
+    int socket;
+    int closed;
+    int delay;
+    int length;
+    int max_read_tries;
+    int8_t packet_data[PACKET_BUFFER_LENGTH];
+    int packet_end;
+    int packet_max_length;
+    int packet_start;
+    int read_tries;
+    int socket_exception;
+    char *socket_exception_message;
+    int8_t available_buffer[PACKET_BUFFER_LENGTH];
+    int available_length;
+    int available_offset;
 
 #ifndef NO_RSA
-    struct rsa rsa_pub_key;  // RSA public key structure
+    struct rsa rsa;
 #endif
 
 #ifndef NO_ISAAC
-    struct isaac isaac_in;          // ISAAC input context
-    struct isaac isaac_out;         // ISAAC output context
-    int isaac_ready;                // Flag indicating ISAAC readiness
+    struct isaac isaac_in;
+    struct isaac isaac_out;
+    int isaac_ready;
+#endif
+
+#ifdef REVISION_177
+    /*int decode_key;
+    int decode_threat_index;
+
+    int encode_key;
+    int encode_threat_index;
+
+    int opcode_friend;*/
 #endif
 };
 
-// Function prototypes
 void packet_stream_new(PacketStream *packet_stream, mudclient *mud);
 int packet_stream_available_bytes(PacketStream *packet_stream, int length);
 int packet_stream_read_bytes(PacketStream *packet_stream, int length,
@@ -95,6 +110,7 @@ int packet_stream_read_byte(PacketStream *packet_stream);
 int packet_stream_has_packet(PacketStream *packet_stream);
 int packet_stream_read_packet(PacketStream *packet_stream, int8_t *buffer);
 void packet_stream_new_packet(PacketStream *packet_stream, ClientOpcode opcode);
+/*int packet_stream_decode_opcode(PacketStream *packet_stream, int opcode);*/
 int packet_stream_write_packet(PacketStream *packet_stream, int i);
 void packet_stream_send_packet(PacketStream *packet_stream);
 void packet_stream_put_bytes(PacketStream *packet_stream, void *src, int offset,
@@ -104,7 +120,6 @@ void packet_stream_put_short(PacketStream *packet_stream, int i);
 void packet_stream_put_int(PacketStream *packet_stream, int i);
 void packet_stream_put_long(PacketStream *packet_stream, int64_t i);
 void packet_stream_put_string(PacketStream *packet_stream, char *s);
-
 #ifdef REVISION_177
 void packet_stream_put_password(PacketStream *packet_stream, int session_id,
                                 char *password);
@@ -113,7 +128,6 @@ void packet_stream_put_login_block(PacketStream *packet_stream,
                                    const char *username, const char *password,
                                    uint32_t *isaac_keys, uint32_t uuid);
 #endif
-
 int packet_stream_get_byte(PacketStream *packet_stream);
 int packet_stream_get_short(PacketStream *packet_stream);
 int packet_stream_get_int(PacketStream *packet_stream);
