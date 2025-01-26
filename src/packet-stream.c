@@ -1,12 +1,25 @@
 #include "packet-stream.h"
-#include <kos.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <string.h>
-#include <errno.h>
-#include "rsa.h" // Include rsatiny header
 
+#ifdef HAVE_SIGNALS
+#include <signal.h>
+#endif
+
+#ifdef _WIN32
+#define close closesocket
+#define ioctl ioctlsocket
+
+static int winsock_init = 0;
+#endif
+
+#ifdef WII
+#define socket(x, y, z) net_socket(x, y, z)
+#define gethostbyname net_gethostbyname
+#define setsockopt net_setsockopt
+#define connect net_connect
+#define close net_close
+#define write net_write
+#define recv net_recv
+#endif
 
 #if 0
 char *SPOOKY_THREAT =
@@ -57,17 +70,55 @@ int get_client_opcode_friend(int opcode) {
 
 void init_packet_stream_global(void) { THREAT_LENGTH = strlen(SPOOKY_THREAT); }
 #endif
+
+#ifdef HAVE_SIGNALS
+void on_signal_do_nothing(int dummy);
+
+void on_signal_do_nothing(int dummy) { (void)dummy; }
+#endif
+
 void packet_stream_new(PacketStream *packet_stream, mudclient *mud) {
+#ifdef WIN32
+    if (!winsock_init) {
+        WSADATA wsa_data = {0};
+        int ret = WSAStartup(MAKEWORD(2, 2), &wsa_data);
+
+        if (ret < 0) {
+            mud_error("WSAStartup() error: %d\n", WSAGetLastError());
+            exit(1);
+        }
+        winsock_init = 1;
+    }
+#endif
+
     memset(packet_stream, 0, sizeof(PacketStream));
+
     packet_stream->max_read_tries = 1000;
 
-#ifndef NO_RSA
-    // Initialize the RSA public key
-    rsa_init(&packet_stream->rsa_pub_key, mud->rsa_exponent, mud->rsa_modulus);
+#ifdef REVISION_177
+    /*packet_stream->decode_key = 3141592;
+    packet_stream->encode_key = 3141592;*/
+#endif
 
-    // Validate the RSA public key
-    if (strlen(mud->rsa_modulus) == 0 || strlen(mud->rsa_exponent) == 0) {
-        dbglog(DBG_ERROR, "Invalid RSA key: modulus or exponent missing.\n");
+#ifndef NO_RSA
+    if (rsa_init(&packet_stream->rsa,
+        mud->rsa_exponent, mud->rsa_modulus) < 0) {
+            mud_error("rsa_init failed\n");
+            exit(1);
+    }
+#endif
+
+    int ret = 0;
+
+#ifdef WII
+    char local_ip[16] = {0};
+    char gateway[16] = {0};
+    char netmask[16] = {0};
+
+    ret = if_config(local_ip, netmask, gateway, TRUE, 20);
+
+    if (ret < 0) {
+        mud_error("if_config(): %d\n", ret);
         exit(1);
     }
 #endif
@@ -75,51 +126,160 @@ void packet_stream_new(PacketStream *packet_stream, mudclient *mud) {
     struct sockaddr_in server_addr = {0};
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(mud->port);
-    struct hostent *host = gethostbyname(mud->server);
 
-    if (!host) {
-        dbglog(DBG_ERROR, "Failed to resolve server: %s\n", mud->server);
+#if defined(WIN9X) || defined(WII)
+    struct hostent *host_addr = gethostbyname(mud->server);
+
+    if (host_addr) {
+        memcpy(&server_addr.sin_addr, host_addr->h_addr_list[0],
+               sizeof(struct in_addr));
+    }
+#else
+    struct addrinfo hints = {0};
+    struct addrinfo *result = {0};
+
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_protocol = IPPROTO_TCP;
+
+    int status = getaddrinfo(mud->server, NULL, &hints, &result);
+
+    if (status != 0) {
+     //   mud_error("getaddrinfo(): %s\n", gai_strerror(status));  // Bruce.
+     mud_error("getaddrinfo() failed with error code: %d\n", status);
+
+
+
         packet_stream->closed = 1;
         return;
     }
 
-    memcpy(&server_addr.sin_addr, host->h_addr, sizeof(struct in_addr));
+    for (struct addrinfo *rp = result; rp != NULL; rp = rp->ai_next) {
+        struct sockaddr_in *addr = (struct sockaddr_in *)rp->ai_addr;
+
+        if (addr != NULL) {
+            memcpy(&server_addr.sin_addr, &addr->sin_addr,
+                   sizeof(struct in_addr));
+            break;
+        }
+    }
+
+    freeaddrinfo(result);
+#endif
+
+#ifdef __SWITCH__
+    socketInitializeDefault();
+#endif
 
     packet_stream->socket = socket(AF_INET, SOCK_STREAM, 0);
+
     if (packet_stream->socket < 0) {
-        dbglog(DBG_ERROR, "Socket creation failed: %s\n", strerror(errno));
+        mud_error("socket error: %s (%d)\n", strerror(errno), errno);
         packet_stream_close(packet_stream);
         return;
     }
 
-    // Retry logic
-    int retries = 5;
-    int delay_ms = 1000;
-    int attempt = 0;
-    int connected = 0;
+    int set = 1;
 
-    while (attempt < retries) {
-        if (connect(packet_stream->socket, (struct sockaddr *)&server_addr, sizeof(server_addr)) == 0) {
-            connected = 1;
+#ifdef TCP_NODELAY
+    setsockopt(packet_stream->socket, IPPROTO_TCP, TCP_NODELAY, &set,
+               sizeof(set));
+#endif
+
+#ifdef EMSCRIPTEN
+    int attempts_ms = 0;
+
+    do {
+        if (attempts_ms >= 5000) {
             break;
         }
 
-        dbglog(DBG_WARNING, "Connection attempt %d failed: %s\n", attempt + 1, strerror(errno));
-        attempt++;
-        thd_sleep(delay_ms);
-    }
+        ret = connect(packet_stream->socket, (struct sockaddr *)&server_addr,
+                      sizeof(server_addr));
 
-    if (!connected) {
-        dbglog(DBG_ERROR, "All connection attempts failed after %d retries.\n", retries);
+        if (errno == 30) {
+            ret = 0;
+            break;
+        } else if (errno != EINPROGRESS && errno != 7) {
+            /* not sure what 7 is, but i'm not worried about portability
+             * since this is explicitly for emscripten */
+            break;
+        }
+
+        delay_ticks(100);
+        attempts_ms += 100;
+    } while (ret == -1);
+#else
+
+#ifdef FIONBIO
+    ret = ioctl(packet_stream->socket, FIONBIO, &set);
+
+    if (ret < 0) {
+        mud_error("ioctl() error: %d\n", ret);
+        exit(1);
+    }
+#endif
+
+#ifdef HAVE_SIGNALS
+    (void)signal(SIGPIPE, on_signal_do_nothing);
+#endif
+
+    ret = connect(packet_stream->socket, (struct sockaddr *)&server_addr,
+                  sizeof(server_addr));
+
+    if (ret == -1) {
+#ifdef WIN32
+        if (WSAGetLastError() == WSAEWOULDBLOCK) {
+#else
+        if (errno == EINPROGRESS) {
+#endif
+            struct timeval timeout = {0};
+            timeout.tv_sec = 5;
+            timeout.tv_usec = 0;
+
+            fd_set write_fds;
+            FD_ZERO(&write_fds);
+            FD_SET(packet_stream->socket, &write_fds);
+
+            ret = select(packet_stream->socket + 1, NULL, &write_fds, NULL,
+                         &timeout);
+
+            if (ret > 0) {
+                socklen_t lon = sizeof(int);
+                int valopt = 0;
+
+                if (getsockopt(packet_stream->socket, SOL_SOCKET, SO_ERROR,
+                               (void *)(&valopt), &lon) < 0) {
+                    mud_error("getsockopt() error:  %s (%d)\n", strerror(errno),
+                              errno);
+
+                    exit(1);
+                }
+
+                if (valopt > 0) {
+                    ret = -1;
+                    errno = valopt;
+                } else {
+                    ret = 0;
+                }
+            } else if (ret == 0) {
+                mud_error("connect() timeout\n");
+                packet_stream_close(packet_stream);
+                return;
+            }
+        }
+    }
+#endif /* not EMSCRIPTEN */
+
+    if (ret < 0 && errno != 0) {
+        mud_error("connect() error: %s (%d)\n", strerror(errno), errno);
         packet_stream_close(packet_stream);
         return;
     }
 
-    dbglog(DBG_INFO, "Connected to RuneScape server: %s\n", mud->server);
-
     packet_stream->closed = 0;
     packet_stream->packet_end = 3;
-    packet_stream->packet_max_length = PACKET_BUFFER_LENGTH;
+    packet_stream->packet_max_length = 5000;
 }
 
 int packet_stream_available_bytes(PacketStream *packet_stream, int length) {
@@ -127,61 +287,94 @@ int packet_stream_available_bytes(PacketStream *packet_stream, int length) {
         return 1;
     }
 
-    int bytes = recv(packet_stream->socket,
-                     packet_stream->available_buffer + packet_stream->available_offset + packet_stream->available_length,
-                     length - packet_stream->available_length, 0);
+    int bytes =
+        recv(packet_stream->socket,
+             packet_stream->available_buffer + packet_stream->available_offset +
+                 packet_stream->available_length,
+             length - packet_stream->available_length, 0);
 
-    if (bytes <= 0) {
-        return 0; // Failure
+    if (bytes < 0) {
+        bytes = 0;
     }
 
     packet_stream->available_length += bytes;
-    return (packet_stream->available_length >= length);
+
+    if (packet_stream->available_length < length) {
+        return 0;
+    }
+
+    return 1;
 }
 
-int packet_stream_read_bytes(PacketStream *packet_stream, int length, int8_t *buffer) {
+int packet_stream_read_bytes(PacketStream *packet_stream, int length,
+                             int8_t *buffer) {
     if (packet_stream->closed) {
         return -1;
     }
 
-    int remaining = length;
+    if (packet_stream->available_length > 0) {
+        int copy_length;
 
-    while (remaining > 0) {
-        int to_copy = packet_stream->available_length < remaining
-                          ? packet_stream->available_length
-                          : remaining;
-
-        if (to_copy > 0) {
-            memcpy(buffer, packet_stream->available_buffer + packet_stream->available_offset, to_copy);
-            buffer += to_copy;
-            remaining -= to_copy;
-            packet_stream->available_length -= to_copy;
-
-            if (packet_stream->available_length == 0) {
-                packet_stream->available_offset = 0;
-            } else {
-                packet_stream->available_offset += to_copy;
-            }
+        if (length > packet_stream->available_length) {
+            copy_length = packet_stream->available_length;
         } else {
-            int bytes = recv(packet_stream->socket, packet_stream->available_buffer, PACKET_BUFFER_LENGTH, 0);
-            if (bytes <= 0) {
-                dbglog(DBG_ERROR, "Socket recv failed: %s\n", strerror(errno));
-                packet_stream->closed = 1;
-                return -1;
-            }
+            copy_length = length;
+        }
 
-            packet_stream->available_length = bytes;
+        memcpy(buffer,
+               packet_stream->available_buffer +
+                   packet_stream->available_offset,
+               copy_length);
+
+        length -= copy_length;
+
+        packet_stream->available_length -= copy_length;
+
+        if (packet_stream->available_length == 0) {
             packet_stream->available_offset = 0;
+        } else {
+            packet_stream->available_offset += copy_length;
+        }
+    }
+
+    /* how many ticks we've been waiting to read for */
+    int read_duration = 0;
+
+    int offset = 0;
+
+    while (length > 0) {
+        int bytes = recv(packet_stream->socket, buffer + offset, length, 0);
+        if (bytes > 0) {
+            length -= bytes;
+            offset += bytes;
+        } else if (bytes == 0) {
+            packet_stream->closed = 1;
+            return -1;
+        } else {
+            read_duration += 1;
+
+            if (read_duration >= 5000) {
+                packet_stream_close(packet_stream);
+                return -1;
+            } else {
+                delay_ticks(1);
+            }
         }
     }
 
     return 0;
 }
 
-int packet_stream_write_bytes(PacketStream *packet_stream, int8_t *buffer, int offset, int length) {
+int packet_stream_write_bytes(PacketStream *packet_stream, int8_t *buffer,
+                              int offset, int length) {
     if (!packet_stream->closed) {
+#if defined(WIN32) || defined(__SWITCH__)
         return send(packet_stream->socket, buffer + offset, length, 0);
+#else
+        return write(packet_stream->socket, buffer + offset, length);
+#endif
     }
+
     return -1;
 }
 
@@ -280,7 +473,6 @@ void packet_stream_new_packet(PacketStream *packet_stream,
     packet_stream->packet_end = packet_stream->packet_start + 3;
 }
 
-
 /*int packet_stream_decode_opcode(PacketStream *packet_stream, int opcode) {
     int index = (opcode - packet_stream->decode_key) & 255;
     int decoded_opcode = OPCODE_ENCRYPTION[index];
@@ -331,21 +523,41 @@ int packet_stream_write_packet(PacketStream *packet_stream, int i) {
 }
 
 void packet_stream_send_packet(PacketStream *packet_stream) {
-    int length = packet_stream->packet_end - packet_stream->packet_start;
+#if 0
+    int i = packet_stream->packet_data[packet_stream->packet_start + 2] & 0xff;
 
-    if (length > PACKET_BUFFER_LENGTH) {
-        dbglog(DBG_ERROR, "Packet length exceeds buffer size\n");
-        return;
+    packet_stream->packet_data[packet_stream->packet_start + 2] =
+        (int8_t)(i + packet_stream->decode_key);
+
+    int opcode_friend = packet_stream->opcode_friend;
+
+    packet_stream->encode_threat_index =
+        (packet_stream->encode_threat_index + opcode_friend) % THREAT_LENGTH;
+
+    char threat_character = SPOOKY_THREAT[packet_stream->encode_threat_index];
+
+    packet_stream->encode_key =
+        packet_stream->encode_key * 3 + (int)threat_character + opcode_friend &
+        0xffff;
+#endif
+
+    int length = packet_stream->packet_end - packet_stream->packet_start - 2;
+
+    if (length >= 160) {
+        packet_stream->packet_data[packet_stream->packet_start] =
+            (160 + (length / 256)) & 0xff;
+
+        packet_stream->packet_data[packet_stream->packet_start + 1] =
+            length & 0xff;
+    } else {
+        packet_stream->packet_data[packet_stream->packet_start] = length & 0xff;
+        packet_stream->packet_end--;
+
+        packet_stream->packet_data[packet_stream->packet_start + 1] =
+            packet_stream->packet_data[packet_stream->packet_end];
     }
 
-    if (send(packet_stream->socket, packet_stream->packet_data + packet_stream->packet_start, length, 0) <= 0) {
-        dbglog(DBG_ERROR, "Failed to send packet: %s\n", strerror(errno));
-        packet_stream->closed = 1;
-        return;
-    }
-
-    packet_stream->packet_start = 0;
-    packet_stream->packet_end = 3; // Reset to default start
+    packet_stream->packet_start = packet_stream->packet_end;
 }
 
 int packet_stream_flush_packet(PacketStream *packet_stream) {
@@ -389,52 +601,67 @@ void packet_stream_put_string(PacketStream *packet_stream, char *s) {
 }
 
 #ifndef NO_RSA
-static void packet_stream_put_rsa(PacketStream *packet_stream, const void *input, size_t input_len) {
-    unsigned char encrypted[512]; // Adjust size for your key
-    size_t encrypted_len;
+static void packet_stream_put_rsa(PacketStream *packet_stream,
+                                  void *input, size_t input_len) {
+    uint8_t result[64] = {0};
+    int res_len;
 
-    // Encrypt the input using rsa_tiny
-    encrypted_len = rsa_crypt(
-        &packet_stream->rsa_pub_key, input, input_len, encrypted, sizeof(encrypted)
-    );
-
-    if (encrypted_len <= 0) {
-        dbglog(DBG_ERROR, "RSA encryption failed\n");
+    res_len = rsa_crypt(&packet_stream->rsa,
+                  input, input_len, result, sizeof(result));
+    if (res_len < 0) {
+        mud_error("failed to rsa_crypt\n");
         return;
     }
 
-    // Add the encrypted block to the packet stream
-    packet_stream_put_byte(packet_stream, (int)encrypted_len); // Store length
-    memcpy(&packet_stream->packet_data[packet_stream->packet_end], encrypted, encrypted_len);
-    packet_stream->packet_end += encrypted_len;
+    packet_stream_put_byte(packet_stream, sizeof(result));
+
+    /* in java's BigInteger byte array array, zeros at the beginning are
+     * ignored unless they're being used to indicate the MSB for sign. since
+     * the byte array lengths range from 63-65 and we always want a positive
+     * integer, we can make result_length 65 and begin with up to two 0 bytes */
+    for (size_t i = 0; i < (sizeof(result) - res_len); ++i) {
+        packet_stream_put_byte(packet_stream, 0);
+    }
+    for (int i = 0; i < res_len; ++i) {
+        packet_stream_put_byte(packet_stream, result[i]);
+    }
 }
 #endif
 
 #ifndef REVISION_177
-void packet_stream_put_login_block(PacketStream *packet_stream, const char *username, const char *password,
+void packet_stream_put_login_block(PacketStream *packet_stream,
+                                   const char *username, const char *password,
                                    uint32_t *isaac_keys, uint32_t uuid) {
-    uint8_t input_block[128] = {0};  // Adjusted size for RuneScape Classic
-    uint8_t *p = input_block;
-
-#ifndef NO_ISAAC
-    for (int i = 0; i < 4; i++) {
-        packet_stream->isaac_in.randrsl[i] = isaac_keys[i];
-        packet_stream->isaac_out.randrsl[i] = isaac_keys[i];
-        write_unsigned_int(p, 0, isaac_keys[i]);
-        p += 4;
-    }
-#endif
-
-    write_unsigned_int(p, 0, uuid);
-    p += 4;
+    uint8_t input_block[16 + (sizeof(uint32_t) * 4) + 4 + USERNAME_LENGTH +
+                        PASSWORD_LENGTH];
 
     size_t username_len = strlen(username);
     size_t password_len = strlen(password);
+    uint8_t *p = input_block;
 
-    if (username_len + password_len + 2 > sizeof(input_block)) {
-        dbglog(DBG_ERROR, "Username and password too long for input block\n");
-        return;
+#if !defined(NO_ISAAC) || !defined(NO_RSA)
+    *(p++) = '\n'; /* Magic for sanity checks by the server. */
+#endif
+
+#ifndef NO_ISAAC
+    memset(packet_stream->isaac_in.randrsl, 0,
+           sizeof(packet_stream->isaac_in.randrsl));
+
+    memset(packet_stream->isaac_out.randrsl, 0,
+           sizeof(packet_stream->isaac_out.randrsl));
+#endif
+
+    for (unsigned int i = 0; i < 4; ++i) {
+#ifndef NO_ISAAC
+        packet_stream->isaac_in.randrsl[i] = isaac_keys[i];
+        packet_stream->isaac_out.randrsl[i] = isaac_keys[i];
+#endif
+        write_unsigned_int(p, 0, isaac_keys[i]);
+        p += 4;
     }
+
+    write_unsigned_int(p, 0, uuid);
+    p += 4;
 
     memcpy(p, username, username_len);
     p += username_len;
@@ -444,9 +671,16 @@ void packet_stream_put_login_block(PacketStream *packet_stream, const char *user
     p += password_len;
     *(p++) = '\n';
 
+#ifndef NO_ISAAC
+    isaac_init(&packet_stream->isaac_in, 1);
+    isaac_init(&packet_stream->isaac_out, 1);
+    packet_stream->isaac_ready = 1;
+#endif
+
 #ifndef NO_RSA
     packet_stream_put_rsa(packet_stream, input_block, p - input_block);
 #else
+    packet_stream_put_byte(packet_stream, p - input_block);
     packet_stream_put_bytes(packet_stream, input_block, 0, p - input_block);
 #endif
 }
@@ -506,11 +740,12 @@ int packet_stream_get_int(PacketStream *packet_stream) {
 }
 
 int64_t packet_stream_get_long(PacketStream *packet_stream) {
-    int64_t result = 0;
-    for (int i = 0; i < 4; i++) {
-        result = (result << 16) | packet_stream_get_short(packet_stream);
-    }
-    return result;
+    int i = packet_stream_get_short(packet_stream);
+    int j = packet_stream_get_short(packet_stream);
+    int k = packet_stream_get_short(packet_stream);
+    int l = packet_stream_get_short(packet_stream);
+
+    return ((int64_t)i << 48) + ((int64_t)j << 32) + ((int64_t)k << 16) + l;
 }
 
 void packet_stream_close(PacketStream *packet_stream) {
@@ -518,5 +753,6 @@ void packet_stream_close(PacketStream *packet_stream) {
         close(packet_stream->socket);
         packet_stream->socket = -1;
     }
+
     packet_stream->closed = 1;
 }
