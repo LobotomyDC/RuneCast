@@ -7,9 +7,6 @@
 #include <ctype.h>
 #include <kos/dbglog.h>
 
-// Debug text color
-#define DEBUG_TEXT_COLOR PVR_PACK_COLOR(1.0, 1.0, 1.0, 1.0)
-
 // Framebuffer dimensions
 #define FRAMEBUFFER_WIDTH 640
 #define FRAMEBUFFER_HEIGHT 480
@@ -17,41 +14,16 @@
 // Keyboard Buffer
 #define DREAMCAST_KEYBOARD_BUFFER_SIZE 256
 
-// Adjusted sensitivity scaling for 640x480 resolution
-#define SCALE_X ((float)RENDER_WIDTH / FRAMEBUFFER_WIDTH)
-#define SCALE_Y ((float)RENDER_HEIGHT / FRAMEBUFFER_HEIGHT)
-
 // D-Pad movement speed (pixels per frame)
 #define DPAD_SPEED 5
 
-#ifdef DREAMCAST
-char keyboard_buttons[5][10] = {
-    {'1', '2', '3', '4', '5', '6', '7', '8', '9', '0'},
-    {'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'},
-    {'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';'},
-    {'z', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '/'},
-    {' ', ' ', ' ', ' ', ' ', ' ', '-', '=', '\'', 0}};
-
-char keyboard_shift_buttons[5][10] = {
-    {'!', '@', '#', '$', '%', '^', '&', '*', '(', ')'},
-    {'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'},
-    {'A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', ':'},
-    {'Z', 'X', 'C', 'V', 'B', 'N', 'M', '<', '>', '?'},
-    {' ', ' ', ' ', ' ', ' ', ' ', '_', '+', '"', 0}};
-#endif
-
-// We keep these static variables for tracking mouse position
+// TODO: See if this can be handled differently
 static int s_cursor_x = FRAMEBUFFER_WIDTH / 2;
 static int s_cursor_y = FRAMEBUFFER_HEIGHT / 2;
 
 // Forward declarations
 void append_to_keyboard_buffer(char c);
 void process_backspace(void);
-
-/*
-    Removed: draw_cursor(...) and mudclient_draw_cursor(...)
-    The game’s own engine or higher-level code presumably handles the GUI cursor.
-*/
 
 // This function just polls events and updates s_cursor_x, s_cursor_y
 void mudclient_poll_events(mudclient *mud) {
@@ -91,7 +63,7 @@ void mudclient_poll_events(mudclient *mud) {
             }
 
             case SDL_MOUSEMOTION: {
-                printf("xrel=%d, yrel=%d\n", event.motion.xrel, event.motion.yrel);
+                printf("xrel=%d, yrel=%d\n", event.motion.xrel, event.motion.yrel); //uncomment to spam mouse coords if you're into that
                 s_cursor_x += event.motion.xrel;
                 s_cursor_y += event.motion.yrel;
 
@@ -117,7 +89,7 @@ void mudclient_poll_events(mudclient *mud) {
                 break;
 
             case SDL_JOYAXISMOTION: {
-                // Joystick movements also update the same cursor
+                // Joystick movements should also update the same cursor position
                 if (event.jaxis.axis == 0) { // Left Stick X-axis
                     s_cursor_x += (int)((event.jaxis.value / 32767.0f) * DPAD_SPEED);
                 } else if (event.jaxis.axis == 1) { // Left Stick Y-axis
@@ -181,18 +153,6 @@ void process_backspace() {
     }
 }
 
-void update_cursor_position(int *cursor_x, int *cursor_y, int delta_x, int delta_y) {
-    // No sensitivity, no max delta - direct additions
-    *cursor_x += delta_x;
-    *cursor_y += delta_y;
-
-    // Clamp the cursor position within screen bounds
-    if (*cursor_x < 0) *cursor_x = 0;
-    if (*cursor_x >= FRAMEBUFFER_WIDTH) *cursor_x = FRAMEBUFFER_WIDTH - 1;
-    if (*cursor_y < 0) *cursor_y = 0;
-    if (*cursor_y >= FRAMEBUFFER_HEIGHT) *cursor_y = FRAMEBUFFER_HEIGHT - 1;
-}
-
 void mudclient_start_application(mudclient *mud, char *title) {
 #ifdef DREAMCAST
     vid_init(DM_640x480, PM_RGB565);
@@ -202,6 +162,7 @@ void mudclient_start_application(mudclient *mud, char *title) {
     dbglog(DBG_INFO, "Mudclient initialized for Dreamcast\n");
 #else
     int init = SDL_INIT_VIDEO | SDL_INIT_TIMER;
+    //SDL_ShowCursor(0); //Really just here to see if SDL was drawing the cursor. Looks like it probably isn't.
     if (SDL_Init(init) < 0) {
         mud_error("SDL_Init(): %s\n", SDL_GetError());
         exit(1);
