@@ -1,9 +1,22 @@
 #include "mudclient.h"
 #include <kos.h>
-#ifdef EMSCRIPTEN
+#include <kos/net.h>
+#include <dc/maple.h>
+#include <dc/maple/keyboard.h>
+#include <dc/maple/mouse.h>
+#include <dc/maple/controller.h>
+#include <dc/pvr.h>
+#include <dc/video.h>
+#include <dc/sound/stream.h>
+#include <SDL/SDL.h>
+#include <ctype.h>
+#include <kos/dbglog.h>
+
+
+//#ifdef EMSCRIPTEN
 /* clang doesn't know what triple equals is, understandably */
 /* clang-format off */
-EM_JS(int, can_resize, (), {
+/*EM_JS(int, can_resize, (), {
     return window._mudclientCanResize &&
                document.activeElement !== window._mudclientKeyboard &&
                document.activeElement !== window._mudclientPassword;
@@ -61,10 +74,10 @@ EM_JS(void, browser_trigger_keyboard,
 EM_JS(int, browser_is_touch, (), { return window._mudclientIsTouch; });
 /* clang-format on */
 
-int last_canvas_check = 0;
+/*int last_canvas_check = 0;
 
 mudclient *global_mud = NULL;
-#endif
+#endif*/
 KOS_INIT_FLAGS(INIT_DEFAULT | INIT_NET);
 
 int mudclient_finger_1_x = 0;
@@ -107,13 +120,13 @@ static const char *anims_older_is_better[] = {
 
 char login_screen_status[255] = {0};
 
-#ifdef __SWITCH__
+/*#ifdef __SWITCH__
 SDL_Joystick *joystick;
 #define MAX_KBD_STR_SIZE 200
 SwkbdConfig switch_keyboard;
 char switch_keyboard_buffer[MAX_KBD_STR_SIZE] = {0};
 uint8_t switch_mouse_button = 1;
-#endif
+#endif*/
 
 void mudclient_new(mudclient *mud) {
     memset(mud, 0, sizeof(mudclient));
@@ -149,9 +162,9 @@ void mudclient_new(mudclient *mud) {
     mud->selected_item_inventory_index = -1;
     mud->quest_complete = calloc(quests_length, sizeof(int8_t));
 
-#ifdef _3DS
+/*#ifdef _3DS
     mud->_3ds_sound_position = -1;
-#endif
+#endif*/
 
     mud->appearance_body_type = 1;
     mud->appearance_hair_colour = 2;
@@ -390,13 +403,13 @@ static void mudclient_start_application_common(struct mudclient *mud) {
 
     mud_log("Started application\n");
 
-#ifdef _3DS
+/*#ifdef _3DS
     mudclient_3ds_draw_top_background(mud);
-#endif
+#endif*/
 
-#ifdef ANDROID
+/*#ifdef ANDROID
     SDL_SetWindowFullscreen(mud->window, SDL_WINDOW_FULLSCREEN);
-#endif
+#endif*/
 
     mudclient_run(mud);
 }
@@ -907,10 +920,10 @@ void mudclient_draw_loading_progress(mudclient *mud, int percent, char *text) {
     } else {
         surface_gl_reset_context(mud->surface);
     }
-#elif defined(RENDER_3DS_GL)
+/*#elif defined(RENDER_3DS_GL)
     mudclient_3ds_gl_frame_start(mud, 1);
     surface_draw(mud->surface);
-    mudclient_3ds_gl_frame_end();
+    mudclient_3ds_gl_frame_end();*/
 #else
     surface_draw(mud->surface);
 #endif
@@ -924,7 +937,7 @@ int8_t *mudclient_read_data_file(mudclient *mud, char *file, char *description,
     mudclient_draw_loading_progress(mud, percent, loading_text);
 
     int8_t header[6];
-#ifdef WII
+/*#ifdef WII
     const int8_t *file_data = NULL;
 
     if (strcmp(file, "jagex.jag") == 0) {
@@ -960,15 +973,15 @@ int8_t *mudclient_read_data_file(mudclient *mud, char *file, char *description,
     }
 
     memcpy(header, file_data, sizeof(header));
-#else
+#else*/
 
-#ifdef ANDROID
+/*#ifdef ANDROID
     char *prefixed_file = file;
     SDL_RWops *archive_stream = SDL_RWFromFile(prefixed_file, "rb");
 #elif defined(_3DS) || defined(__SWITCH__)
     char prefixed_file[PATH_MAX];
     snprintf(prefixed_file, "romfs:/%s", file);
-#else
+#else*/
     char prefixed_file[PATH_MAX];
     snprintf(prefixed_file, sizeof(prefixed_file), "/cd/cache/%s", file);
 
@@ -1003,19 +1016,19 @@ int8_t *mudclient_read_data_file(mudclient *mud, char *file, char *description,
             archive_stream = fopen(prefixed_file, "rb");
         }
     }
-#endif
+//#endif
 
     if (archive_stream == NULL) {
         mud_error("Unable to read file: %s\n", prefixed_file);
         exit(1);
     }
 
-#ifdef ANDROID
+/*#ifdef ANDROID
     SDL_RWread(archive_stream, header, sizeof(header), 1);
-#else
+#else*/
     fread(header, sizeof(header), 1, archive_stream);
-#endif
-#endif
+//#endif
+//#endif
 
     int archive_size = ((header[0] & 0xff) << 16) + ((header[1] & 0xff) << 8) +
                        (header[2] & 0xff);
@@ -1027,20 +1040,20 @@ int8_t *mudclient_read_data_file(mudclient *mud, char *file, char *description,
     sprintf(loading_text, "Loading %s - 5%%", description);
     mudclient_draw_loading_progress(mud, percent, loading_text);
 
-#ifdef WII
+/*#ifdef WII
     int8_t *archive_data = file_data + 6;
-#else
+#else*/
     int read = 0;
     int8_t *archive_data = malloc(archive_size_compressed);
 
     while (read < archive_size_compressed) {
         int length = archive_size_compressed - read;
 
-#ifdef ANDROID
+/*#ifdef ANDROID
         SDL_RWread(archive_stream, archive_data + read, length, 1);
-#else
+#else*/
         fread(archive_data + read, length, 1, archive_stream);
-#endif
+//#endif
 
         read += length;
 
@@ -1050,12 +1063,12 @@ int8_t *mudclient_read_data_file(mudclient *mud, char *file, char *description,
         mudclient_draw_loading_progress(mud, percent, loading_text);
     }
 
-#ifdef ANDROID
+/*#ifdef ANDROID
     SDL_RWclose(archive_stream);
-#else
+#else*/
     fclose(archive_stream);
-#endif
-#endif
+//#endif
+//#endif
 
     sprintf(loading_text, "Unpacking %s", description);
     mudclient_draw_loading_progress(mud, percent, loading_text);
@@ -1869,13 +1882,13 @@ void mudclient_reset_game(mudclient *mud) {
 
     surface_black_screen(mud->surface);
 
-#ifdef RENDER_3DS_GL
+/*#ifdef RENDER_3DS_GL
     mudclient_3ds_gl_frame_start(mud, 1);
     surface_draw(mud->surface);
     mudclient_3ds_gl_frame_end();
-#else
+#else*/
     surface_draw(mud->surface);
-#endif
+//#endif
 
     for (int i = 0; i < mud->object_count; i++) {
         scene_remove_model(mud->scene, mud->objects[i].model);
@@ -2025,9 +2038,9 @@ void mudclient_login(mudclient *mud, char *username, char *password,
     format_auth_string(password, PASSWORD_LENGTH, formatted_password);
 
     if (reconnecting) {
-#ifdef RENDER_3DS_GL
+/*#ifdef RENDER_3DS_GL
         mudclient_3ds_gl_frame_start(mud, 0);
-#endif
+#endif*/
 
         mudclient_draw_lost_connection(mud);
         surface_draw(mud->surface);
@@ -2107,11 +2120,11 @@ void mudclient_login(mudclient *mud, char *username, char *password,
 
     int response = packet_stream_get_byte(mud->packet_stream);
 #else
-#ifdef _3DS
+/*#ifdef _3DS
     mud_log("Verb: Session id: %lld\n", session_id); /* ? */
-#else
+//#else
     mud_log("Verb: Session id: %ld\n", session_id);
-#endif
+//#endif
 
     uint32_t keys[4] = {0};
     keys[0] = (int)(((float)rand() / (float)RAND_MAX) * (float)99999999);
@@ -2597,11 +2610,11 @@ void mudclient_start_game(mudclient *mud) {
         scene_new(mud->scene, mud->surface, 15000, 15000, 1000);
     }
 
-#ifdef RENDER_3DS_GL
+/*#ifdef RENDER_3DS_GL
     scene_set_bounds(mud->scene, mud->game_width, mud->game_height);
-#else
+#else*/
     scene_set_bounds(mud->scene, mud->game_width, mud->game_height - 12);
-#endif
+//#endif
 
     mud->scene->clip_far_3d = 2400;
     mud->scene->clip_far_2d = 2400;
@@ -2745,9 +2758,9 @@ int mudclient_load_next_region(mudclient *mud, int lx, int ly) {
 
     mudclient_draw_chat_message_tabs(mud);
 
-#ifdef RENDER_3DS_GL
+/*#ifdef RENDER_3DS_GL
     mudclient_3ds_gl_frame_start(mud, 0);
-#endif
+#endif*/
 
     surface_draw(mud->surface);
 
@@ -2757,8 +2770,8 @@ int mudclient_load_next_region(mudclient *mud, int lx, int ly) {
 #else
     SDL_GL_SwapWindow(mud->gl_window);
 #endif
-#elif defined(RENDER_3DS_GL)
-    mudclient_3ds_gl_frame_end();
+/*#elif defined(RENDER_3DS_GL)
+    mudclient_3ds_gl_frame_end();*/
 #endif
 
     int ax = mud->region_x;
@@ -4611,9 +4624,9 @@ void mudclient_draw_entity_sprites(mudclient *mud) {
 }
 
 void mudclient_draw_game(mudclient *mud) {
-#ifdef RENDER_3DS_GL
+/*#ifdef RENDER_3DS_GL
     mudclient_3ds_gl_frame_start(mud, 1);
-#endif
+#endif*/
 
     if (mud->death_screen_timeout != 0) {
         surface_fade_to_black(mud->surface);
@@ -4871,8 +4884,8 @@ void mudclient_draw_game(mudclient *mud) {
 
 #ifdef RENDER_GL
     scene_gl_render_transparent_models(mud->scene);
-#elif defined(RENDER_3DS_GL)
-    scene_3ds_gl_render_transparent_models(mud->scene);
+/*#elif defined(RENDER_3DS_GL)
+    scene_3ds_gl_render_transparent_models(mud->scene);*/
 #endif
 
 #if defined(RENDER_GL) || defined(RENDER_3DS_GL)
@@ -4889,7 +4902,7 @@ void mudclient_draw_game(mudclient *mud) {
 }
 
 void mudclient_draw(mudclient *mud) {
-#ifdef EMSCRIPTEN
+/*#ifdef EMSCRIPTEN
     if (get_ticks() - last_canvas_check > 1000) {
         if (can_resize() && (get_window_width() != mud->game_width ||
                              get_window_height() != mud->game_height)) {
@@ -4898,7 +4911,7 @@ void mudclient_draw(mudclient *mud) {
 
         last_canvas_check = get_ticks();
     }
-#endif
+#endif*/
 
     if (mud->error_loading_data) {
         /* TODO draw error */
@@ -4906,9 +4919,9 @@ void mudclient_draw(mudclient *mud) {
         return;
     }
 
-#ifdef WII
+/*#ifdef WII
     draw_background(mud->framebuffer, 0);
-#endif
+#endif*/
 
 #ifdef RENDER_GL
     glClear(GL_DEPTH_BUFFER_BIT);
@@ -4926,8 +4939,8 @@ void mudclient_draw(mudclient *mud) {
 #else
         SDL_GL_SwapWindow(mud->gl_window);
 #endif
-#elif defined(RENDER_3DS_GL)
-        mudclient_3ds_gl_frame_end();
+/*#elif defined(RENDER_3DS_GL)
+        mudclient_3ds_gl_frame_end();*/
 #endif
     }
 }
@@ -4990,16 +5003,16 @@ void mudclient_on_resize(mudclient *mud) {
     SDL_Window *window = mud->window;
 #endif
 
-#ifdef EMSCRIPTEN
+/*#ifdef EMSCRIPTEN
     new_width = get_window_width();
     new_height = get_window_height();
     SDL_SetWindowSize(window, new_width, new_height);
-#endif
+#endif*/
 
     SDL_GetWindowSize(window, &new_width, &new_height);
 #endif
 
-#ifdef ANDROID
+/*#ifdef ANDROID
     mudclient_full_width = new_width;
     mudclient_full_height = new_height;
 
@@ -5014,7 +5027,7 @@ void mudclient_on_resize(mudclient *mud) {
         new_height =
             roundf(360 * (mudclient_full_height / (float)mudclient_full_width));
     }
-#endif
+#endif*/
 
     mud->game_width = new_width;
     mud->game_height = new_height;
@@ -5056,13 +5069,13 @@ void mudclient_on_resize(mudclient *mud) {
 int mudclient_is_touch(mudclient *mud) {
     (void)(mud);
 
-#ifdef ANDROID
+/*#ifdef ANDROID
     return 1; // TODO maybe still make this toggleable
 #elif defined(EMSCRIPTEN)
     return browser_is_touch();
-#else
+#else*/
     return 0;
-#endif
+//#endif
 }
 
 // TODO open_keyboard
@@ -5078,7 +5091,7 @@ void mudclient_trigger_keyboard(mudclient *mud, char *text, int is_password,
     (void)height;
     (void)font;
     (void)is_centred;
-#ifdef ANDROID
+/*#ifdef ANDROID
     SDL_StartTextInput();
 #elif defined(EMSCRIPTEN)
     int is_scaled = mudclient_is_ui_scaled(mud);
@@ -5090,17 +5103,17 @@ void mudclient_trigger_keyboard(mudclient *mud, char *text, int is_password,
 
     browser_trigger_keyboard(text, is_password, x, y, width, height, font,
                              is_centred, is_scaled);
-#endif
+#endif*/
 }
 
 void mudclient_run(mudclient *mud) {
-#ifdef WII
+/*#ifdef WII
     draw_background(mud->framebuffers[0], 1);
     draw_background(mud->framebuffers[1], 1);
 
     mud->active_framebuffer ^= 1;
     mud->framebuffer = mud->framebuffers[mud->active_framebuffer];
-#endif
+#endif*/
 
     if (mud->loading_step == 1) {
         mud->loading_step = 2;
@@ -5108,9 +5121,9 @@ void mudclient_run(mudclient *mud) {
         mudclient_start_game(mud);
         mud->loading_step = 0;
 
-#ifdef EMSCRIPTEN
+/*#ifdef EMSCRIPTEN
         mudclient_on_resize(mud);
-#endif
+#endif*/
     }
 
     int timing_index = 0;
@@ -5192,21 +5205,21 @@ void mudclient_run(mudclient *mud) {
 
         i1 &= 255;
 
-#ifdef _3DS
+/*#ifdef _3DS
         if (!mud->keyboard_open) {
             mudclient_draw(mud);
-        }
-#else
+        }*/
+//#else
         mudclient_draw(mud);
-#endif
+//#endif
 
-#ifdef _3DS
+/*#ifdef _3DS
         mudclient_3ds_flush_audio(mud);
 
         if (!aptMainLoop()) {
             return;
         }
-#endif
+#endif*/
 
         mud->fps = (j * 1000) / (mud->target_fps * 256);
 
@@ -5351,11 +5364,11 @@ void mudclient_play_sound(mudclient *mud, char *name) {
         return;
     }
 
-#ifdef _3DS
+/*#ifdef _3DS
     if (mud->_3ds_sound_position != -1) {
         return;
     }
-#endif
+#endif*/
 
     char file_name[strlen(name) + 5];
     sprintf(file_name, "%s.pcm", name);
@@ -5372,7 +5385,7 @@ void mudclient_play_sound(mudclient *mud, char *name) {
 
     ulaw_to_linear(length, (uint8_t *)mud->sound_data + offset, mud->pcm_out);
 
-#ifdef WII
+/*#ifdef WII
     // ASND_StopVoice(0);
 
     ASND_SetVoice(0, VOICE_MONO_16BIT_BE, SAMPLE_RATE, 0, mud->pcm_out,
@@ -5380,13 +5393,13 @@ void mudclient_play_sound(mudclient *mud, char *name) {
 #elif defined(_3DS)
     mud->_3ds_sound_position = 0;
     mud->_3ds_sound_length = length * 2;
-#elif defined(SDL_VERSION_ATLEAST)
+#elif defined(SDL_VERSION_ATLEAST)*/
 #if SDL_VERSION_ATLEAST(2, 0, 4)
     // TODO could re-pause after sound plays?
     SDL_PauseAudio(0);
     SDL_QueueAudio(1, mud->pcm_out, length * 2);
 #endif
-#endif
+//#endif
 }
 
 int mudclient_walk_to(mudclient *mud, int start_x, int start_y, int x1, int y1,
@@ -5586,9 +5599,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 #else
 int main(int argc, char **argv) {
 #endif
-#ifdef _3DS
+/*#ifdef _3DS
     osSetSpeedupEnable(true);
-#endif
+#endif*/
     srand(0);
 
     init_utility_global();
@@ -5600,9 +5613,9 @@ int main(int argc, char **argv) {
     mudclient *mud = malloc(sizeof(mudclient));
     mudclient_new(mud);
 
-#ifdef EMSCRIPTEN
+/*#ifdef EMSCRIPTEN
     global_mud = mud;
-#endif
+#endif*/
 
     if (argc > 1 && strlen(argv[1]) > 0) {
         mud->options->members = strcmp(argv[1], "members") == 0;
@@ -5628,10 +5641,28 @@ int main(int argc, char **argv) {
     /* END INAUTHENTIC COMMAND LINE ARGUMENTS */
 #endif
 
+
+#ifdef DREAMCAST
+    // Initialize the networking stack
+    if (net_init() < 0) {
+        dbglog(DBG_ERROR, "Networking initialization failed.\n");
+        free(mud); // Clean up allocated memory before exiting
+        return -1;
+    } else {
+        dbglog(DBG_INFO, "Networking initialized successfully.\n");
+    }
+#endif
+
     mudclient_start_application(mud, "Runescape by Andrew Gower");
     mudclient_start_application_common(mud);
 
-#ifdef RENDER_3DS_GL
+#ifdef DREAMCAST
+    // Shutdown networking before exiting
+    net_shutdown();
+    dbglog(DBG_INFO, "Networking shut down.\n");
+#endif
+
+/*#ifdef RENDER_3DS_GL
     shaderProgramFree(&mud->surface->_3ds_gl_flat_shader);
     DVLB_Free(mud->surface->_3ds_gl_flat_shader_dvlb);
 
@@ -5643,12 +5674,12 @@ int main(int argc, char **argv) {
     ndspExit();
 
     gfxExit();
-#endif
+#endif*/
 
     return 0;
 }
 
-#ifdef EMSCRIPTEN
+/*#ifdef EMSCRIPTEN
 void browser_mouse_moved(int x, int y) {
     mudclient_mouse_moved(global_mud, x, y);
 }
@@ -5656,4 +5687,4 @@ void browser_mouse_moved(int x, int y) {
 void browser_key_pressed(int code, int char_code) {
     mudclient_key_pressed(global_mud, code, char_code);
 }
-#endif
+#endif*/
