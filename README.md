@@ -44,9 +44,9 @@ distribute with `./cache` directory.
 
 ### run requirements
 
--A Sega Dreamcast
+* A Sega Dreamcast
 
--A computer with the KallistiOS build environment
+* A computer with the KallistiOS build environment
 
 ## Credits
 * @Bruceleeto for the initial porting attempt, helping me get started with a makefile, as well as a few pointers I probably should have figured out by reading the documentation
