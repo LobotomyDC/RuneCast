@@ -20,7 +20,7 @@ Prominent new features include:
 * A/B - mouse button 1 and 2
 * X/Y - F1 and F2 for now
 
-### Build Instructions:
+## Build Instructions:
 
 Requires KallistiOS set up to build
  
@@ -28,7 +28,7 @@ Requires KallistiOS set up to build
 * ```make -f Makefile.dreamcast```
 * ```make -f Makefile.dreamcast clean```
 
-## Build Instructions (linux)
+## Build Instructions (linux):
 
 install [libsdl2-dev](https://packages.debian.org/sid/libsdl2-dev).
 if compiling with opengl support, also install
