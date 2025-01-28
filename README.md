@@ -28,16 +28,11 @@ Requires KallistiOS set up to build
 ```source /opt/toolchains/dc/kos/environ.sh```
 
 2.
-For SDL 1.2 SDL-dreamhal-GLDC (For up-to-date KallistiOS builds):
-```-make -f Makefile.dreamcast SDLOLD=1```
-For SDL 1.2.1.3DC-SDL-Dreamhal-GLDC (For Pre-KallistiOS 2.1.x builds. Untested!)
-```-make -f Makefile.dreamcast SDLOLD=0```
-For SDL2:
-```-make -f Makefile.dreamcast SDL2=1```
+```make -f Makefile.dreamcast```
 
 3.
 To clean your build environment:
-```make -f Makefile.dreamcast [YOUR_SDL_VERSION_TOGGLE_HERE (e.g. SDLOLD=1)] clean```
+```make -f Makefile.dreamcast clean```
 
 ## Build Instructions (linux)
 
