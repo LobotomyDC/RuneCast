@@ -1,7 +1,7 @@
 USE_LOCOLOUR ?= 1
 USE_TOONSCAPE ?= 1
-RENDER_GL ?= 0
-LEGACY_GL ?= 0
+RENDER_GL ?= 1
+LEGACY_GL ?= 1
 
 TARGET = mudclient.elf
 
@@ -16,30 +16,11 @@ SRC := $(filter-out src/mudclient-sdl2.c src/mudclient-sdl.c, $(SRC))
 SRC := $(filter-out src/mudclient-sdl12.c, $(SRC))  # Avoid duplicates
 SRC += src/mudclient-sdl12.c  # Include only once
 
-# Detect SDL version based on SDLOLD variable
-ifeq ($(SDLOLD), 1)
-    SDL_DIR = $(CURDIR)/SDL-dreamhal--GLDC
-    SDL_CFLAGS = -I$(SDL_DIR)/include
-    SDL_LDFLAGS = -L$(SDL_DIR)/lib -lSDL -lSDL_ttf
-    $(info Using SDL-dreamhal--GLDC (legacy))
-else ifeq ($(SDLOLD), 0)
-    SDL_DIR = $(CURDIR)/SDL-1.2.1.3DC-SDL-dreamhal-GLDC/Precompiled\ Libraries\ and\ Headers
+# Use KOS' default SDL library
+SDL_CFLAGS = -I/opt/toolchains/dc/kos-ports/include/SDL
+SDL_LDFLAGS = -L/opt/toolchains/dc/kos-ports/lib -lSDL -lSDL_ttf
 
-    # Quote paths to handle spaces
-    SDL_CFLAGS = -I"$(SDL_DIR)/SDL/include" \
-                 -I"$(SDL_DIR)/SDL_GLdc/include" \
-                 -I"$(SDL_DIR)/SDL_image/include" \
-                 -I"$(SDL_DIR)/SDL_mixer-1.2.6/include"
-
-    SDL_LDFLAGS = "$(SDL_DIR)/SDL/libSDL.a" \
-                  "$(SDL_DIR)/SDL_GLdc/libSDL_GLdc.a" \
-                  "$(SDL_DIR)/SDL_image/libSDL_image.a" \
-                  "$(SDL_DIR)/SDL_mixer-1.2.6/libSDL_mixer.a"
-
-    $(info Using SDL-1.2.1.3DC-SDL-dreamhal-GLDC)
-else
-    $(error SDLOLD must be set to 0 or 1)
-endif
+$(info Using KOS default SDL library)
 
 # Default to SDL1.2 for Dreamcast
 CFLAGS += -DSDL12
@@ -56,7 +37,7 @@ CFLAGS += -Wno-strict-aliasing -Wno-implicit-function-declaration
 LDFLAGS = $(SDL_LDFLAGS)
 LDFLAGS += -L/opt/toolchains/dc/kos-ports/lib
 LDFLAGS += -L$(KOS_BASE)/addons/lib/$(KOS_ARCH)
-LDFLAGS += -lppp -lm
+LDFLAGS += -lppp -lm 
 
 # Debugging and optimization flags
 ifdef DEBUG
@@ -77,7 +58,7 @@ include $(KOS_BASE)/Makefile.rules
 debug:
 	@echo "Sources: $(SRC)"
 	@echo "Objects: $(OBJS)"
-	@echo "Using SDL from: $(SDL_DIR)"
+	@echo "Using KOS default SDL library"
 	@echo "CFLAGS: $(CFLAGS)"
 	@echo "LDFLAGS: $(LDFLAGS)"
 
