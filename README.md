@@ -24,9 +24,9 @@ Prominent new features include:
 
 Requires KallistiOS set up to build
  
-```source /opt/toolchains/dc/kos/environ.sh```
-```make -f Makefile.dreamcast```
-```make -f Makefile.dreamcast clean```
+* ```source /opt/toolchains/dc/kos/environ.sh```
+* ```make -f Makefile.dreamcast```
+* ```make -f Makefile.dreamcast clean```
 
 ## Build Instructions (linux)
 
