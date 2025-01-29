@@ -10,7 +10,17 @@ Prominent new features include:
 * Keyboard and Mouse Support!
 * It doesn't run on stock hardware (yet)!
 
+### run requirements
+
+* A Sega Dreamcast
+
+* [A Computer with the KallistiOS build environment installed](https://dreamcast.wiki/Getting_Started_with_Dreamcast_development)
+
 ### Controls (Dreamcast):
+
+* Maple Keyboard and Mouse
+
+* OR (soon)
 
 * D-Pad/R Analog (if available) to control camera
 * L analog for mouse input
@@ -22,11 +32,13 @@ Prominent new features include:
 
 ## Build Instructions:
 
-Requires KallistiOS set up to build
+Requires KallistiOS set up to build. When that is installed, cd to the project folder and type the following in Terminal:
  
 * ```source /opt/toolchains/dc/kos/environ.sh```
-* ```make -f Makefile.dreamcast```
 * ```make -f Makefile.dreamcast clean```
+* ```make -f Makefile.dreamcast```
+* ```mkdcdisc -e '/PATH-TO/mudclient.elf' -d '/PATH-TO/cache' -o RuneScape.cdi -N```
+* ```flycast RuneScape.cdi```
 
 ## Build Instructions (linux):
 
@@ -42,11 +54,6 @@ and [pkgconf](https://packages.debian.org/sid/pkgconf).
 
 distribute with `./cache` directory.
 
-### run requirements
-
-* A Sega Dreamcast
-
-* A computer with the KallistiOS build environment
 
 ## Credits
 * @Bruceleeto for the initial porting attempt, helping me get started with a makefile, as well as a few pointers I probably should have figured out by reading the documentation
