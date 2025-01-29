@@ -22,11 +22,13 @@ Prominent new features include:
 
 ## Build Instructions:
 
-Requires KallistiOS set up to build
+Requires KallistiOS set up to build. When that is installed, cd to the project folder and type the following in Terminal:
  
 * ```source /opt/toolchains/dc/kos/environ.sh```
-* ```make -f Makefile.dreamcast```
 * ```make -f Makefile.dreamcast clean```
+* ```make -f Makefile.dreamcast```
+* ```mkdcdisc -e '/PATH-TO/mudclient.elf' -d '/PATH-TO/cache' -o RuneScape.cdi -N```
+* ```flycast RuneScape.cdi```
 
 ## Build Instructions (linux):
 
