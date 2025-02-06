@@ -2435,7 +2435,6 @@ static void scene_rasterize(Scene *scene, int vertex_count, int32_t *vertices_x,
                 int length = k18 - j;
 
                 if (length <= 0) {
-                    /* Advance param increments and skip. */
                     l9  += i11;
                     k11 += k12;
                     i13 += i14;
@@ -2768,23 +2767,17 @@ static void scene_initialise_polygon_3d(Scene *scene, int polygon_index) {
     GameModel *game_model = polygon->model;
     int face = polygon->face;
 
-    // Face-level data
     uint16_t *fv = game_model->face_vertices[face]; // indices of vertices
     uint8_t face_vertex_count = game_model->face_vertex_count[face];
     int normal_scale = game_model->normal_scale[face];
 
-    // The arrays for coordinate lookup:
-    // (According to your compiler errors, these are int16_t*)
     int16_t *px = game_model->project_vertex_x;
     int16_t *py = game_model->project_vertex_y;
     int16_t *pz = game_model->project_vertex_z;
 
-    // (And these are int32_t*)
     int32_t *vx = game_model->vertex_view_x;
     int32_t *vy = game_model->vertex_view_y;
 
-    // 1) Compute partial normal from the first three vertices
-    //    Casting each to int so that all arithmetic is 32-bit
     int project_x_a = (int)px[fv[0]];
     int project_y_a = (int)py[fv[0]];
     int project_z_a = (int)pz[fv[0]];
@@ -2797,7 +2790,6 @@ static void scene_initialise_polygon_3d(Scene *scene, int polygon_index) {
     int project_y_c = (int)py[fv[2]];
     int project_z_c = (int)pz[fv[2]];
 
-    // Differences for BA and CA
     int project_x_delta_ba = project_x_b - project_x_a;
     int project_y_delta_ba = project_y_b - project_y_a;
     int project_z_delta_ba = project_z_b - project_z_a;
@@ -2806,7 +2798,6 @@ static void scene_initialise_polygon_3d(Scene *scene, int polygon_index) {
     int project_y_delta_ca = project_y_c - project_y_a;
     int project_z_delta_ca = project_z_c - project_z_a;
 
-    // Cross product => face normal (in “project” space).
     int normal_x = project_y_delta_ba * project_z_delta_ca
                  - project_y_delta_ca * project_z_delta_ba;
     int normal_y = project_z_delta_ba * project_x_delta_ca
@@ -2814,12 +2805,7 @@ static void scene_initialise_polygon_3d(Scene *scene, int polygon_index) {
     int normal_z = project_x_delta_ba * project_y_delta_ca
                  - project_x_delta_ca * project_y_delta_ba;
 
-    /*
-     * 2) If normal_scale == -1, we haven't computed a stable scale factor.
-     *    We'll do the single-pass approach to find how many right-shifts needed.
-     */
     if (normal_scale == -1) {
-        // Find the max absolute component for shifting
         int max_abs = normal_x;
         if (abs(normal_y) > abs(max_abs)) max_abs = normal_y;
         if (abs(normal_z) > abs(max_abs)) max_abs = normal_z;
@@ -2839,32 +2825,24 @@ static void scene_initialise_polygon_3d(Scene *scene, int polygon_index) {
             normal_z >>= shift;
         }
 
-        // Compute normal magnitude using single-precision sqrtf (faster on SH-4)
         float len = sqrtf((float)(normal_x * (long long)normal_x +
                                   normal_y * (long long)normal_y +
                                   normal_z * (long long)normal_z));
         game_model->normal_magnitude[face] = scene->normal_magnitude * len;
     } else {
-        // Already have a scale factor, just shift
         normal_x >>= normal_scale;
         normal_y >>= normal_scale;
         normal_z >>= normal_scale;
     }
 
-    // 3) Dot product for polygon->visibility
     polygon->visibility = project_x_a * normal_x
                         + project_y_a * normal_y
                         + project_z_a * normal_z;
 
-    // Store the final normal
     polygon->normal_x = normal_x;
     polygon->normal_y = normal_y;
     polygon->normal_z = normal_z;
 
-    /*
-     * 4) Compute bounding box in Z, plane_x, plane_y.
-     *    The first vertex is our initial min/max.
-     */
     int min_z = (int)pz[fv[0]];
     int max_z = min_z;
 
@@ -2874,7 +2852,6 @@ static void scene_initialise_polygon_3d(Scene *scene, int polygon_index) {
     int min_plane_y = (int)vy[fv[0]];
     int max_plane_y = min_plane_y;
 
-    // i=1..face_vertex_count-1: gather min/max from the remaining vertices
     for (int i = 1; i < face_vertex_count; i++) {
         int idx = fv[i];
 
@@ -3513,18 +3490,12 @@ static inline int wrap_b(int i, int len) {
 static int scene_intersect(int *vertex_view_x_a, int *vertex_view_y_a,
                            int *vertex_view_x_b, int *vertex_view_y_b,
                            int length_a, int length_b) {
-    /*
-     * 1) Local pointer caching: shorter aliases xA,yA,xB,yB
-     *    so we don't do vertex_view_x_a[...] repeatedly.
-     */
+
     int *xA = vertex_view_x_a;
     int *yA = vertex_view_y_a;
     int *xB = vertex_view_x_b;
     int *yB = vertex_view_y_b;
 
-    /*
-     * 2) Find min & max Y for polygon A
-     */
     int view_y_a = yA[0];
     int k20 = view_y_a;
     int k = 0;
@@ -3538,9 +3509,6 @@ static int scene_intersect(int *vertex_view_x_a, int *vertex_view_y_a,
         }
     }
 
-    /*
-     * 3) Find min & max Y for polygon B
-     */
     int view_y_b = yB[0];
     int l20 = view_y_b;
     int i1 = 0;
@@ -3554,31 +3522,18 @@ static int scene_intersect(int *vertex_view_x_a, int *vertex_view_y_a,
         }
     }
 
-    /*
-     * 4) Quick bounding check in Y:
-     *    - If polygon B's min Y >= polygon A's max Y => no overlap
-     *    - If polygon A's min Y >= polygon B's max Y => no overlap
-     */
     if (view_y_b >= k20 || view_y_a >= l20) {
         return 0;
     }
 
-    /*
-     * The following variables are used in the big 'state machine' logic below.
-     */
     int l = 0;
     int j1 = 0;
     int flag = 0;
     int8_t byte0 = 0;
 
-    /*
-     * 5) Determine which polygon's minimal Y is smaller, run initial pass
-     */
     if (yA[k] < yB[i1]) {
-        // Step forward in A until yA[l] >= yB[i1]
         for (l = k; yA[l] < yB[i1]; l = wrap_a(l + 1, length_a))
             ;
-        // Step backward in A until yA[k] >= yB[i1]
         for (; yA[k] < yB[i1]; k = wrap_a(k - 1, length_a))
             ;
 
@@ -3606,10 +3561,8 @@ static int scene_intersect(int *vertex_view_x_a, int *vertex_view_y_a,
             byte0 = 1;
         }
     } else {
-        // Step forward in B until yB[j1] >= yA[k]
         for (j1 = i1; yB[j1] < yA[k]; j1 = wrap_b(j1 + 1, length_b))
             ;
-        // Step backward in B until yB[i1] >= yA[k]
         for (; yB[i1] < yA[k]; i1 = wrap_b(i1 - 1, length_b))
             ;
 
