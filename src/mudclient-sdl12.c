@@ -21,11 +21,9 @@
 static int s_cursor_x = FRAMEBUFFER_WIDTH / 2;
 static int s_cursor_y = FRAMEBUFFER_HEIGHT / 2;
 
-// Forward declarations
 void append_to_keyboard_buffer(char c);
 void process_backspace(void);
 
-// This function just polls events and updates s_cursor_x, s_cursor_y
 void mudclient_poll_events(mudclient *mud) {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
@@ -66,8 +64,6 @@ void mudclient_poll_events(mudclient *mud) {
                 printf("xrel=%d, yrel=%d\n", event.motion.xrel, event.motion.yrel); //uncomment to spam mouse coords if you're into that
                 s_cursor_x += event.motion.xrel;
                 s_cursor_y += event.motion.yrel;
-
-                // Update game with new position
                 mudclient_mouse_moved(mud, s_cursor_x, s_cursor_y);
                 break;
             }
@@ -154,15 +150,13 @@ void process_backspace() {
 }
 
 void mudclient_start_application(mudclient *mud, char *title) {
-#ifdef DREAMCAST
-    vid_init(DM_640x480, PM_RGB565);
-    pvr_init_defaults();
-    pvr_set_bg_color(0.0f, 0.0f, 0.0f);
-    snd_stream_init();
+//#ifdef DREAMCAST
+    vid_init(DM_320x240, PM_RGB555);
+//    pvr_init_defaults();
+//    snd_stream_init();
     dbglog(DBG_INFO, "Mudclient initialized for Dreamcast\n");
-#else
+//#else
     int init = SDL_INIT_VIDEO | SDL_INIT_TIMER;
-    //SDL_ShowCursor(0); //Really just here to see if SDL was drawing the cursor. Looks like it probably isn't.
     if (SDL_Init(init) < 0) {
         mud_error("SDL_Init(): %s\n", SDL_GetError());
         exit(1);
@@ -173,11 +167,11 @@ void mudclient_start_application(mudclient *mud, char *title) {
 
 #ifdef RENDER_SW
     mud->screen = SDL_SetVideoMode(mud->game_width, mud->game_height, 32,
-                                   SDL_HWSURFACE | SDL_RESIZABLE);
+                                   SDL_HWSURFACE | SDL_FULLSCREEN);
 #elif defined(RENDER_GL)
     mud->screen = SDL_SetVideoMode(mud->game_width, mud->game_height, 32,
                                    SDL_OPENGL | SDL_RESIZABLE);
-#endif
+//#endif
 #endif
 }
 
