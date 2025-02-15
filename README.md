@@ -1,4 +1,4 @@
-# RuneCast -- An RSC-C Port to the SEGA Dreamcast
+# RuneCast -- An RSC-C Port to SGI Workstations with MIPS3 CPUs (R4000 & R4400)
 
 portable, enhanced runescape classic client ported to C99. supports 204 and 177
 protocols. original mudclient204 java source refactored by v0rtex/xetr0v and
@@ -6,54 +6,35 @@ Isaac Eggsampler. compatible with [rscsundae](https://git.sr.ht/~stormy/rscsunda
 [openrsc](https://rsc.vet/) and 2003scape.
 
 Prominent new features include:
-* native port for Sega Dreamcast!
+* Native port for SGI INDIGO & INDIGO2 (R4000/R44000 only! MIPS4 coming Soon!)
 * Keyboard and Mouse Support!
-* It doesn't run on stock hardware (yet)!
+* SDL1.2 / OpenGL 1.1 support!
 
 ### run requirements
 
-* A Sega Dreamcast
+* A SGI Workstation with a MIPS3 CPU
 
-* [A Computer with the KallistiOS build environment installed](https://dreamcast.wiki/Getting_Started_with_Dreamcast_development)
+* If you want to build from source a working GCC build enviroment with gmake and required libraries (install scripts coming soon)
 
-### Controls (Dreamcast):
+* A ton of extra time if you are building from source.
+  
+### Controls:
 
-* Maple Keyboard and Mouse
+* Coming soon!
 
-* OR (soon)
+## Instructions:
 
-* D-Pad/R Analog (if available) to control camera
-* L analog for mouse input
-* hold L whilst tapping touch screen for right click
-* Start -
-* select to toggle top screen's power
-* A/B - mouse button 1 and 2
-* X/Y - F1 and F2 for now
+extract the RuneCast_IRIX-MIPS3.tar file
 
-## Build Instructions:
+tar xvf RuneCast_IRIX-MIPS3.tar
 
-Requires KallistiOS set up to build. When that is installed, cd to the project folder and type the following in Terminal:
- 
-* ```source /opt/toolchains/dc/kos/environ.sh```
-* ```make -f Makefile.dreamcast clean```
-* ```make -f Makefile.dreamcast```
-* ```mkdcdisc -e '/PATH-TO/mudclient.elf' -d '/PATH-TO/cache' -o RuneScape.cdi -N```
-* ```flycast RuneScape.cdi```
+cd RuneCast_IRIX-MIPS3/
 
-## Build Instructions (linux):
+run ./Mudclient
 
-install [libsdl2-dev](https://packages.debian.org/sid/libsdl2-dev).
-if compiling with opengl support, also install
-[libsdl2-image-dev](https://packages.debian.org/sid/libsdl2-image-dev),
-[libglew-dev](https://packages.debian.org/sid/libglew-dev),
-[libgl-dev](https://packages.debian.org/sid/libgl-dev),
-and [pkgconf](https://packages.debian.org/sid/pkgconf).
+## Build Instructions (IRIX 6.5.22):
 
-    $ make
-    $ ./mudclient
-
-distribute with `./cache` directory.
-
+COMING SOON!
 
 ## Credits
 * @Bruceleeto for the initial porting attempt, helping me get started with a makefile, as well as a few pointers I probably should have figured out by reading the documentation
