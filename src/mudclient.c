@@ -5,7 +5,7 @@
 #include <dc/maple/keyboard.h>
 #include <dc/maple/mouse.h>
 #include <dc/maple/controller.h>
-#include <dc/pvr.h>
+//#include <dc/pvr.h>
 #include <dc/video.h>
 #include <dc/sound/stream.h>
 #include <SDL/SDL.h>
