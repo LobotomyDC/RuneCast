@@ -1,5 +1,5 @@
 #include "mudclient.h"
-#include <kos.h>
+//#include <kos.h>
 //#include <dc/pvr.h>
 //#include <dc/video.h>
 //#include <dc/sound/stream.h>
