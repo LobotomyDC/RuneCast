@@ -1,4 +1,4 @@
-USE_LOCOLOUR ?= 1 //TODO: figure these two out
+USE_LOCOLOUR ?= 1
 USE_TOONSCAPE ?= 1
 
 TARGET = mudclient.elf
@@ -6,7 +6,7 @@ TARGET = mudclient.elf
 # Updated source paths
 SRC = $(wildcard src/*.c src/lib/*.c src/ui/*.c src/custom/*.c)
 
-# Include rsa-tiny.c explicitly
+# Include rsa-tiny.c explicitly because packet stream needs it but note to self TODO: get rid of RSA because probs don't need it
 SRC += src/lib/rsa/rsa-tiny.c
 
 # Filter SDL source files to include only the correct implementation
@@ -22,7 +22,7 @@ SDL_LDFLAGS = -L/opt/toolchains/dc/kos-ports/lib -lSDL -lSDL_ttf
 CFLAGS += -DSDL12
 CFLAGS += -fwrapv -std=gnu99 -DRENDER_SW -DSDL_MAIN_HANDLED -DREVISION_177
 CFLAGS += $(SDL_CFLAGS)
-CFLAGS += -Isrc/lib/rsa  # Ensure include path for rsa.h
+#CFLAGS += -Isrc/lib/rsa  # Ensure include path for rsa.h
 
 # GLdc Configuration (Enabled with `make GLDC=1`)
 ifdef GLDC
