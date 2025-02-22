@@ -1,25 +1,25 @@
 #include "mudclient.h"
 #include <kos.h>
-#include <dc/pvr.h>
-#include <dc/video.h>
-#include <dc/sound/stream.h>
+//#include <dc/pvr.h>
+//#include <dc/video.h>
+//#include <dc/sound/stream.h>
 #include <SDL/SDL.h>
 #include <ctype.h>
 #include <kos/dbglog.h>
 
 // Framebuffer dimensions
-#define FRAMEBUFFER_WIDTH 640
-#define FRAMEBUFFER_HEIGHT 480
+#define FRAMEBUFFER_WIDTH 320
+#define FRAMEBUFFER_HEIGHT 240
 
 // Keyboard Buffer
-#define DREAMCAST_KEYBOARD_BUFFER_SIZE 256
+#define DREAMCAST_KEYBOARD_BUFFER_SIZE 64
 
 // D-Pad movement speed (pixels per frame)
 #define DPAD_SPEED 5
 
 // We keep these static variables for tracking mouse position
-static int s_cursor_x = FRAMEBUFFER_WIDTH / 2;
-static int s_cursor_y = FRAMEBUFFER_HEIGHT / 2;
+static int s_cursor_x = FRAMEBUFFER_WIDTH;
+static int s_cursor_y = FRAMEBUFFER_HEIGHT;
 
 void append_to_keyboard_buffer(char c);
 void process_backspace(void);
@@ -62,9 +62,9 @@ void mudclient_poll_events(mudclient *mud) {
 
             case SDL_MOUSEMOTION: {
                 printf("xrel=%d, yrel=%d\n", event.motion.xrel, event.motion.yrel); //uncomment to spam mouse coords if you're into that
-                s_cursor_x += event.motion.xrel;
+/*                s_cursor_x += event.motion.xrel;
                 s_cursor_y += event.motion.yrel;
-                mudclient_mouse_moved(mud, s_cursor_x, s_cursor_y);
+                mudclient_mouse_moved(mud, s_cursor_x, s_cursor_y);*/
                 break;
             }
 
@@ -120,10 +120,10 @@ void mudclient_poll_events(mudclient *mud) {
     } // end while (SDL_PollEvent)
 
     // Final boundary check after all events TODO: See if we even need this
-    if (s_cursor_x < 0) s_cursor_x = 0;
+/*    if (s_cursor_x < 0) s_cursor_x = 0;
     if (s_cursor_x >= FRAMEBUFFER_WIDTH)  s_cursor_x = FRAMEBUFFER_WIDTH - 1;
     if (s_cursor_y < 0) s_cursor_y = 0;
-    if (s_cursor_y >= FRAMEBUFFER_HEIGHT) s_cursor_y = FRAMEBUFFER_HEIGHT - 1;
+    if (s_cursor_y >= FRAMEBUFFER_HEIGHT) s_cursor_y = FRAMEBUFFER_HEIGHT - 1;*/
 }
 
 char dreamcast_keyboard_buffer[DREAMCAST_KEYBOARD_BUFFER_SIZE];
@@ -150,12 +150,7 @@ void process_backspace() {
 }
 
 void mudclient_start_application(mudclient *mud, char *title) {
-//#ifdef DREAMCAST
-    vid_init(DM_320x240, PM_RGB555);
-//    pvr_init_defaults();
-//    snd_stream_init();
     dbglog(DBG_INFO, "Mudclient initialized for Dreamcast\n");
-//#else
     int init = SDL_INIT_VIDEO | SDL_INIT_TIMER;
     if (SDL_Init(init) < 0) {
         mud_error("SDL_Init(): %s\n", SDL_GetError());
@@ -166,11 +161,11 @@ void mudclient_start_application(mudclient *mud, char *title) {
     SDL_WM_SetCaption(title, NULL);
 
 #ifdef RENDER_SW
-    mud->screen = SDL_SetVideoMode(mud->game_width, mud->game_height, 32,
-                                   SDL_HWSURFACE | SDL_FULLSCREEN);
+    mud->screen = SDL_SetVideoMode(mud->game_width, mud->game_height, 16,
+                                   SDL_SWSURFACE | SDL_FULLSCREEN);
 #elif defined(RENDER_GL)
-    mud->screen = SDL_SetVideoMode(mud->game_width, mud->game_height, 32,
-                                   SDL_OPENGL | SDL_RESIZABLE);
+    mud->screen = SDL_SetVideoMode(mud->game_width, mud->game_height, 16,
+                                   SDL_OPENGL | SDL_FULLSCREEN);
 //#endif
 #endif
 }
