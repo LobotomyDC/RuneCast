@@ -689,40 +689,59 @@ static void scene_texture64_alphakey_scanline(int32_t *restrict raster,
 static void scene_colour_translucent_scanline(int32_t *restrict raster, int i,
                                               int32_t *restrict ramp,
                                               int ramp_index, int ramp_inc) {
+    /* If i >= 0, nothing to render */
     if (i >= 0) {
         return;
     }
 
+    /* Multiply ramp increment by 4 as before */
     ramp_inc *= 4;
 
+    /*
+     * Grab initial color from ramp. Main loop handles sets of 16 pixels
+     * in groups of 4, updating 'colour' (ew br*tish) after each 4-pixel block.
+     */
     int colour = ramp[(ramp_index / RAMP_SIZE) & 0xff];
     ramp_index += ramp_inc;
+
+    /* Each group of 16 pixels in the original code used 4x(4 pixel writes). */
     int length = i / 16;
+    
+    for (int block_i = length; block_i < 0; block_i++) {
 
-    for (int i_ = length; i_ < 0; i_++) {
-        for (int j = 0; j < 4; j++) {
-            for (int k = 0; k < 4; k++) {
-                (*raster) = colour + ((*(raster + 1) >> 1) & 0x7f7f7f);
-                raster++;
-            }
+#define WRITE_4_PIXELS() do {                                        \
+    *raster = colour + ((*(raster + 1) >> 1) & 0x7f7f7f); raster++;   \
+    *raster = colour + ((*(raster + 1) >> 1) & 0x7f7f7f); raster++;   \
+    *raster = colour + ((*(raster + 1) >> 1) & 0x7f7f7f); raster++;   \
+    *raster = colour + ((*(raster + 1) >> 1) & 0x7f7f7f); raster++;   \
+    colour = ramp[(ramp_index / RAMP_SIZE) & 0xff];                  \
+    ramp_index += ramp_inc;                                          \
+} while(0)
 
-            colour = ramp[(ramp_index / RAMP_SIZE) & 0xff];
-            ramp_index += ramp_inc;
-        }
+        WRITE_4_PIXELS();  /* j=0 */
+        WRITE_4_PIXELS();  /* j=1 */
+        WRITE_4_PIXELS();  /* j=2 */
+        WRITE_4_PIXELS();  /* j=3 */
+#undef WRITE_4_PIXELS
     }
 
-    length = -(i % 16);
+    /*
+     * Remainder pass (i % 16 leftover pixels). length = -(i % 16).
+     * The code does small strips, updating color after each group of 4 pixels.
+     */
+    length = -(i % 16); /* how many leftover pixels (0..15) */
 
-    for (int i_ = 0; i_ < length; i_++) {
-        (*raster) = colour + ((*(raster + 1) >> 1) & 0x7f7f7f);
+    for (int pix_i = 0; pix_i < length; pix_i++) {
+        *raster = colour + ((*(raster + 1) >> 1) & 0x7f7f7f);
         raster++;
 
-        if ((i_ & 3) == 3) {
+        if ((pix_i & 3) == 3) {
             colour = ramp[(ramp_index / RAMP_SIZE) & 0xff];
             ramp_index += ramp_inc * 2;
         }
     }
 }
+
 
 static void scene_colour_scanline(int32_t *restrict raster, int i,
                                   int32_t *restrict ramp, int ramp_index,
@@ -731,35 +750,56 @@ static void scene_colour_scanline(int32_t *restrict raster, int i,
         return;
     }
 
+    /*
+     * RAMP_WIDE decides if we step in blocks of 2 or 4 horizontally.
+     * Default inner loop is either 8 or 16px.
+     */
+    int step = (RAMP_WIDE ? 2 : 4);
     ramp_inc *= (RAMP_WIDE ? 2 : 4);
 
     int colour = ramp[(ramp_index / RAMP_SIZE) & 0xff];
     ramp_index += ramp_inc;
-    int length = i / (RAMP_WIDE ? 8 : 16);
 
-    for (int i_ = length; i_ < 0; i_++) {
-        for (int j = 0; j < 4; j++) {
-            for (int k = 0; k < (RAMP_WIDE ? 2 : 4); k++) {
-                (*raster++) = colour;
-            }
+    int block_size = (RAMP_WIDE ? 8 : 16);   /* how many pixels per block */
+    int length = i / block_size;
 
-            colour = ramp[(ramp_index / RAMP_SIZE) & 0xff];
-            ramp_index += ramp_inc;
-        }
+    /* MAIN BLOCK LOOP */
+    for (int block_i = length; block_i < 0; block_i++) {
+#define WRITE_BLOCK() do {                              \
+    for (int k_ = 0; k_ < step; k_++) {                 \
+        *raster++ = colour;                             \
+    }                                                   \
+    colour = ramp[(ramp_index / RAMP_SIZE) & 0xff];     \
+    ramp_index += ramp_inc;                             \
+} while(0)
+
+        WRITE_BLOCK();  /* j=0 */
+        WRITE_BLOCK();  /* j=1 */
+        WRITE_BLOCK();  /* j=2 */
+        WRITE_BLOCK();  /* j=3 */
+#undef WRITE_BLOCK
     }
 
-    length = -(i % (RAMP_WIDE ? 8 : 16));
+    /*
+     * Remainder pass: i % block_size leftover pixels
+     * length = -(i % block_size)
+     */
+    length = -(i % block_size);
     int ramp_flag = (RAMP_WIDE ? 1 : 3);
 
-    for (int i_ = 0; i_ < length; i_++) {
-        (*raster++) = colour;
-
-        if ((i_ & ramp_flag) == ramp_flag) {
-            colour = ramp[(ramp_index >> 8) & 0xff];
+    for (int pix_i = 0; pix_i < length; pix_i++) {
+        *raster++ = colour;
+        if ((pix_i & ramp_flag) == ramp_flag) {
+            if (RAMP_WIDE) {
+                colour = ramp[(ramp_index >> 8) & 0xff];
+            } else {
+                colour = ramp[(ramp_index / RAMP_SIZE) & 0xff];
+            }
             ramp_index += ramp_inc;
         }
     }
 }
+
 #endif /* RENDER_SW */
 
 void scene_add_model(Scene *scene, GameModel *model) {
@@ -1626,7 +1666,6 @@ void scene_render(Scene *scene) {
 #elif defined(RENDER_3DS_GL)
     scene_3ds_gl_render(scene);
 #endif
-
     scene->mouse_picking_active = 0;
 }
 
@@ -2272,12 +2311,11 @@ static void scene_rasterize(Scene *scene, int vertex_count, int32_t *vertices_x,
         return;
     }
 
-    /* face_fill's > 0 are textures, < 0 map to RGB */
+    /* face_fill >= 0 => textured; face_fill < 0 => color ramp */
     if (face_fill >= 0) {
         if (face_fill >= scene->texture_count) {
             face_fill = 0;
         }
-
         scene_prepare_texture(scene, face_fill);
 
         int vertex_x = vertices_x[0];
@@ -2293,60 +2331,46 @@ static void scene_rasterize(Scene *scene, int vertex_count, int32_t *vertices_x,
         int j7 = vertices_y[vertex_count] - vertex_y;
         int k8 = vertices_z[vertex_count] - vertex_z;
 
-        /* texture mapping (UVs) */
+        /* Handle dimension == 1 or dimension == 2 differently */
         if (scene->texture_dimension[face_fill] == 1) {
-            /* normal calculations */
-            int l9 = (i6 * vertex_y - j7 * vertex_x) << 12;
-
-            int k10 = (j7 * vertex_z - k8 * vertex_y)
-                      //<< (-scene->view_distance + 16);
-                      //* 128
-                      << 7;
-
-            int i11 = (k8 * vertex_x - i6 * vertex_z)
-                      //<< (-scene->view_distance + 12);
-                      //* 8;
-                      << 3;
+            /* -------------- TEXTURE DIMENSION == 1 -------------- */
+            int l9  = (i6 * vertex_y - j7 * vertex_x) << 12;
+            int k10 = (j7 * vertex_z - k8 * vertex_y) << 7;
+            int i11 = (k8 * vertex_x - i6 * vertex_z) << 3;
 
             int k11 = (i3 * vertex_y - k3 * vertex_x) << 12;
-
-            int i12 = (k3 * vertex_z - i4 * vertex_y)
-                      //<< (-scene->view_distance + 16);
-                      //* 128;
-                      << 7;
-
-            int k12 = (i4 * vertex_x - i3 * vertex_z)
-                      //<< (-scene->view_distance + 12);
-                      //* 8;
-                      << 3;
+            int i12 = (k3 * vertex_z - i4 * vertex_y) << 7;
+            int k12 = (i4 * vertex_x - i3 * vertex_z) << 3;
 
             int i13 = (k3 * i6 - i3 * j7) << 5;
-            // int k13 = (i4 * j7 - k3 * k8) << (5 - scene->view_distance + 4);
-            int k13 = (i4 * j7 - k3 * k8); // 5 - 9 + 4 = 0
-            // int i14 = (i3 * k8 - i4 * i6) >> (scene->view_distance - 5);
+            int k13 = (i4 * j7 - k3 * k8);
             int i14 = (i3 * k8 - i4 * i6) >> 4;
+
             int k14 = k10 >> 4;
             int i15 = i12 >> 4;
             int k15 = k13 >> 4;
+
             int i16 = scene->min_y - scene->base_y;
             int k16 = scene->width;
             int i17 = scene->base_x + scene->min_y * k16;
             int8_t scanline_inc = 1;
 
-            l9 += i11 * i16;
+            /* Offset l9,k11,i13 by the portion that min_y has advanced. */
+            l9  += i11 * i16;
             k11 += k12 * i16;
             i13 += i14 * i16;
 
             if (scene->interlace) {
+                /* If odd line, skip one to align with even lines. */
                 if ((scene->min_y & 1) == 1) {
                     scene->min_y++;
-                    l9 += i11;
+                    l9  += i11;
                     k11 += k12;
                     i13 += i14;
                     i17 += k16;
                 }
-
-                i11 <<= 1; // * 2
+                /* Double stepping vertically. */
+                i11 <<= 1;
                 k12 <<= 1;
                 i14 <<= 1;
                 k16 <<= 1;
@@ -2354,123 +2378,116 @@ static void scene_rasterize(Scene *scene, int vertex_count, int32_t *vertices_x,
             }
 
             if (!scene->texture_back_transparent[face_fill]) {
-                for (int i = scene->min_y; i < scene->max_y;
-                     i += scanline_inc) {
-                    Scanline *scanline = &scene->scanlines[i];
+                /* Non-alpha KEY path */
+                for (int y = scene->min_y; y < scene->max_y; y += scanline_inc) {
+                    Scanline *scanline = &scene->scanlines[y];
                     int j = scanline->start_x >> 8;
                     int i18 = scanline->end_x >> 8;
                     int length = i18 - j;
 
                     if (length <= 0) {
-                        l9 += i11;
+                        /* Advance param increments and skip. */
+                        l9  += i11;
                         k11 += k12;
                         i13 += i14;
                         i17 += k16;
-                    } else {
-                        int j22 = scanline->start_s;
-                        int l23 = (scanline->end_s - j22) / length;
+                        continue;
+                    }
 
-                        if (j < -scene->clip_x) {
-                            j22 += (-scene->clip_x - j) * l23;
-                            j = -scene->clip_x;
-                            length = i18 - j;
-                        }
+                    /* Compute start_s and slope in screen-space */
+                    int j22 = scanline->start_s;
+                    int l23 = (scanline->end_s - j22) / length;
 
-                        if (i18 > scene->clip_x) {
-                            int j18 = scene->clip_x;
-                            length = j18 - j;
-                        }
-
+                    /* Clipping (left) */
+                    if (j < -scene->clip_x) {
+                        int diff = -scene->clip_x - j;
+                        j22 += diff * l23;
+                        j = -scene->clip_x;
+                    }
+                    /* Clipping (right) */
+                    if (i18 > scene->clip_x) {
+                        i18 = scene->clip_x;
+                    }
+                    /* Recompute length after clipping */
+                    length = i18 - j;
+                    if (length > 0) {
                         scene_texture128_scanline(
                             scene->raster + (i17 + j),
-                            scene->texture_pixels[face_fill], l9 + k14 * j,
-                            k11 + i15 * j, i13 + k15 * j, k10, i12, k13, length,
-                            j22, l23 << 2);
-
-                        l9 += i11;
-                        k11 += k12;
-                        i13 += i14;
-                        i17 += k16;
+                            scene->texture_pixels[face_fill],
+                            (l9 + k14 * j), (k11 + i15 * j), (i13 + k15 * j),
+                            k10, i12, k13, length, j22, (l23 << 2));
                     }
-                }
 
+                    /* Advance for next scanline */
+                    l9  += i11;
+                    k11 += k12;
+                    i13 += i14;
+                    i17 += k16;
+                }
                 return;
             }
 
-            for (int i = scene->min_y; i < scene->max_y; i += scanline_inc) {
-                Scanline *scanline = &scene->scanlines[i];
+            /* Alpha-KEY path */
+            for (int y = scene->min_y; y < scene->max_y; y += scanline_inc) {
+                Scanline *scanline = &scene->scanlines[y];
                 int j = scanline->start_x >> 8;
                 int k18 = scanline->end_x >> 8;
                 int length = k18 - j;
 
                 if (length <= 0) {
-                    l9 += i11;
+                    l9  += i11;
                     k11 += k12;
                     i13 += i14;
                     i17 += k16;
-                } else {
-                    int k22 = scanline->start_s;
-                    int i24 = (scanline->end_s - k22) / length;
+                    continue;
+                }
 
-                    if (j < -scene->clip_x) {
-                        k22 += (-scene->clip_x - j) * i24;
-                        j = -scene->clip_x;
-                        length = k18 - j;
-                    }
+                int k22 = scanline->start_s;
+                int i24 = (scanline->end_s - k22) / length;
 
-                    if (k18 > scene->clip_x) {
-                        int l18 = scene->clip_x;
-                        length = l18 - j;
-                    }
+                if (j < -scene->clip_x) {
+                    int diff = -scene->clip_x - j;
+                    k22 += diff * i24;
+                    j = -scene->clip_x;
+                }
+                if (k18 > scene->clip_x) {
+                    k18 = scene->clip_x;
+                }
 
+                length = k18 - j;
+                if (length > 0) {
                     scene_texture128_alphakey_scanline(
                         scene->raster + (i17 + j),
-                        scene->texture_pixels[face_fill], l9 + k14 * j,
-                        k11 + i15 * j, i13 + k15 * j, k10, i12, k13, length,
-                        k22, i24);
-
-                    l9 += i11;
-                    k11 += k12;
-                    i13 += i14;
-                    i17 += k16;
+                        scene->texture_pixels[face_fill],
+                        (l9 + k14 * j), (k11 + i15 * j), (i13 + k15 * j),
+                        k10, i12, k13, length, k22, i24);
                 }
-            }
 
+                l9  += i11;
+                k11 += k12;
+                i13 += i14;
+                i17 += k16;
+            }
             return;
         }
 
+        /* -------------- TEXTURE DIMENSION == 2 -------------- */
         int i10 = (i6 * vertex_y - j7 * vertex_x) << 11;
-
-        int l10 = (j7 * vertex_z - k8 * vertex_y)
-                  //<< (5 - scene->view_distance + 6 + 4);
-                  //* 128;
-                  << 6;
-
-        int j11 = (k8 * vertex_x - i6 * vertex_z)
-                  //<< (5 - scene->view_distance + 6);
-                  //* 4;
-                  << 2;
+        int l10 = (j7 * vertex_z - k8 * vertex_y) << 6;
+        int j11 = (k8 * vertex_x - i6 * vertex_z) << 2;
 
         int l11 = (i3 * vertex_y - k3 * vertex_x) << 11;
-
-        int j12 = (k3 * vertex_z - i4 * vertex_y)
-                  //<< (5 - scene->view_distance + 6 + 4);
-                  //* 64;
-                  << 6;
-
-        int l12 = (i4 * vertex_x - i3 * vertex_z)
-                  //<< (5 - scene->view_distance + 6);
-                  //* 4;
-                  << 2;
+        int j12 = (k3 * vertex_z - i4 * vertex_y) << 6;
+        int l12 = (i4 * vertex_x - i3 * vertex_z) << 2;
 
         int j13 = (k3 * i6 - i3 * j7) << 5;
-        // int l13 = (i4 * j7 - k3 * k8) << (5 - scene->view_distance + 4);
         int l13 = (i4 * j7 - k3 * k8);
-        // int j14 = (i3 * k8 - i4 * i6) / 16;
         int j14 = (i3 * k8 - i4 * i6) >> 4;
+
         int l14 = l10 >> 4;
         int j15 = j12 >> 4;
         int l15 = l13 >> 4;
+
         int j16 = scene->min_y - scene->base_y;
         int l16 = scene->width;
         int j17 = scene->base_x + scene->min_y * l16;
@@ -2483,12 +2500,11 @@ static void scene_rasterize(Scene *scene, int vertex_count, int32_t *vertices_x,
         if (scene->interlace) {
             if ((scene->min_y & 1) == 1) {
                 scene->min_y++;
-                i10 += j11;
-                l11 += l12;
-                j13 += j14;
-                j17 += l16;
+                i10  += j11;
+                l11  += l12;
+                j13  += j14;
+                j17  += l16;
             }
-
             j11 <<= 1;
             l12 <<= 1;
             j14 <<= 1;
@@ -2497,97 +2513,101 @@ static void scene_rasterize(Scene *scene, int vertex_count, int32_t *vertices_x,
         }
 
         if (!scene->texture_back_transparent[face_fill]) {
-            for (int i = scene->min_y; i < scene->max_y; i += scanline_inc) {
-                Scanline *scanline = &scene->scanlines[i];
+            /* Non-alpha KEY path */
+            for (int y = scene->min_y; y < scene->max_y; y += scanline_inc) {
+                Scanline *scanline = &scene->scanlines[y];
                 int j = scanline->start_x >> 8;
                 int k19 = scanline->end_x >> 8;
                 int length = k19 - j;
 
                 if (length <= 0) {
-                    i10 += j11;
-                    l11 += l12;
-                    j13 += j14;
-                    j17 += l16;
-                } else {
-                    int i23 = scanline->start_s;
-                    int k24 = (scanline->end_s - i23) / length;
-
-                    if (j < -scene->clip_x) {
-                        i23 += (-scene->clip_x - j) * k24;
-                        j = -scene->clip_x;
-                        length = k19 - j;
-                    }
-                    if (k19 > scene->clip_x) {
-                        int l19 = scene->clip_x;
-                        length = l19 - j;
-                    }
-
-                    scene_texture64_scanline(scene->raster + (j17 + j),
-                                             scene->texture_pixels[face_fill],
-                                             i10 + l14 * j, l11 + j15 * j,
-                                             j13 + l15 * j, l10, j12, l13,
-                                             length, i23, k24);
-
-                    i10 += j11;
-                    l11 += l12;
-                    j13 += j14;
-                    j17 += l16;
+                    i10  += j11;
+                    l11  += l12;
+                    j13  += j14;
+                    j17  += l16;
+                    continue;
                 }
-            }
 
+                int i23 = scanline->start_s;
+                int k24 = (scanline->end_s - i23) / length;
+
+                if (j < -scene->clip_x) {
+                    int diff = -scene->clip_x - j;
+                    i23 += diff * k24;
+                    j += diff;
+                }
+                if (k19 > scene->clip_x) {
+                    k19 = scene->clip_x;
+                }
+                length = k19 - j;
+                if (length > 0) {
+                    scene_texture64_scanline(
+                        scene->raster + (j17 + j),
+                        scene->texture_pixels[face_fill],
+                        (i10 + l14 * j), (l11 + j15 * j), (j13 + l15 * j),
+                        l10, j12, l13, length, i23, k24);
+                }
+
+                i10  += j11;
+                l11  += l12;
+                j13  += j14;
+                j17  += l16;
+            }
             return;
         }
 
-        for (int i = scene->min_y; i < scene->max_y; i += scanline_inc) {
-            Scanline *scanline = &scene->scanlines[i];
+        /* Alpha-KEY path */
+        for (int y = scene->min_y; y < scene->max_y; y += scanline_inc) {
+            Scanline *scanline = &scene->scanlines[y];
             int j = scanline->start_x >> 8;
             int i20 = scanline->end_x >> 8;
             int l21 = i20 - j;
 
             if (l21 <= 0) {
-                i10 += j11;
-                l11 += l12;
-                j13 += j14;
-                j17 += l16;
-            } else {
-                int j23 = scanline->start_s;
-                int l24 = (scanline->end_s - j23) / l21;
-
-                if (j < -scene->clip_x) {
-                    j23 += (-scene->clip_x - j) * l24;
-                    j = -scene->clip_x;
-                    l21 = i20 - j;
-                }
-
-                if (i20 > scene->clip_x) {
-                    int j20 = scene->clip_x;
-                    l21 = j20 - j;
-                }
-
-                scene_texture64_alphakey_scanline(
-                    scene->raster + (j17 + j), scene->texture_pixels[face_fill],
-                    i10 + l14 * j, l11 + j15 * j, j13 + l15 * j, l10, j12, l13,
-                    l21, j23, l24);
-
-                i10 += j11;
-                l11 += l12;
-                j13 += j14;
-                j17 += l16;
+                i10  += j11;
+                l11  += l12;
+                j13  += j14;
+                j17  += l16;
+                continue;
             }
-        }
 
+            int j23 = scanline->start_s;
+            int l24 = (scanline->end_s - j23) / l21;
+
+            if (j < -scene->clip_x) {
+                int diff = -scene->clip_x - j;
+                j23 += diff * l24;
+                j += diff;
+            }
+            if (i20 > scene->clip_x) {
+                i20 = scene->clip_x;
+            }
+            l21 = i20 - j;
+            if (l21 > 0) {
+                scene_texture64_alphakey_scanline(
+                    scene->raster + (j17 + j),
+                    scene->texture_pixels[face_fill],
+                    (i10 + l14 * j), (l11 + j15 * j), (j13 + l15 * j),
+                    l10, j12, l13, l21, j23, l24);
+            }
+
+            i10  += j11;
+            l11  += l12;
+            j13  += j14;
+            j17  += l16;
+        }
         return;
     }
 
+    /* -------------- COLORED (face_fill < 0) -------------- */
     for (int i = 0; i < RAMP_COUNT; i++) {
-        // TODO maybe rename base. it maps a gradient_ramps index to a face_fill
         if (scene->gradient_base[i] == face_fill) {
             scene->gradient_ramp = scene->gradient_ramps[i];
             break;
         }
-
         if (i == RAMP_COUNT - 1) {
-            int gradient_index = ((float)rand() / (float)RAND_MAX) * RAMP_COUNT;
+            int gradient_index =
+                (int)(((float)rand() / (float)RAND_MAX) * RAMP_COUNT);
 
             scene->gradient_base[gradient_index] = face_fill;
             face_fill = -1 - face_fill;
@@ -2605,7 +2625,6 @@ static void scene_rasterize(Scene *scene, int vertex_count, int32_t *vertices_x,
                 scene->gradient_ramps[gradient_index][(RAMP_SIZE - 1) - j] =
                     (dark_r << 16) + (dark_g << 8) + dark_b;
             }
-
             scene->gradient_ramp = scene->gradient_ramps[gradient_index];
         }
     }
@@ -2619,77 +2638,81 @@ static void scene_rasterize(Scene *scene, int vertex_count, int32_t *vertices_x,
             scene->min_y++;
             l2 += i2;
         }
-
-        i2 <<= 1;
+        i2 <<= 1;      /* double stepping horizontally */
         scanline_inc = 2;
     }
 
     if (game_model->transparent) {
-        for (int i = scene->min_y; i < scene->max_y; i += scanline_inc) {
-            Scanline *scanline = &scene->scanlines[i];
-            int j = scanline->start_x >> 8;
-            int k4 = scanline->end_x >> 8;
-            int k6 = k4 - j;
+        /* -------------- TRANSLUCENT RAMP FILL -------------- */
+        for (int y = scene->min_y; y < scene->max_y; y += scanline_inc) {
+            Scanline *scanline = &scene->scanlines[y];
+            int j   = scanline->start_x >> 8;
+            int k4  = scanline->end_x >> 8;
+            int k6  = k4 - j;
 
             if (k6 <= 0) {
                 l2 += i2;
-            } else {
-                int ramp_index = scanline->start_s;
-                int ramp_inc = (scanline->end_s - ramp_index) / k6;
-
-                if (j < -scene->clip_x) {
-                    ramp_index += (-scene->clip_x - j) * ramp_inc;
-                    j = -scene->clip_x;
-                    k6 = k4 - j;
-                }
-
-                if (k4 > scene->clip_x) {
-                    int l4 = scene->clip_x;
-                    k6 = l4 - j;
-                }
-
-                scene_colour_translucent_scanline(scene->raster + (l2 + j), -k6,
-                                                  scene->gradient_ramp,
-                                                  ramp_index, ramp_inc);
-
-                l2 += i2;
+                continue;
             }
-        }
 
+            int ramp_index = scanline->start_s;
+            int ramp_inc   = (scanline->end_s - ramp_index) / k6;
+
+            /* Left clip */
+            if (j < -scene->clip_x) {
+                int diff = -scene->clip_x - j;
+                ramp_index += diff * ramp_inc;
+                j += diff;
+            }
+            /* Right clip */
+            if (k4 > scene->clip_x) {
+                k4 = scene->clip_x;
+            }
+            k6 = k4 - j;
+            if (k6 > 0) {
+                scene_colour_translucent_scanline(
+                    scene->raster + (l2 + j), -k6, scene->gradient_ramp,
+                    ramp_index, ramp_inc);
+            }
+
+            l2 += i2;
+        }
         return;
     }
 
-    for (int i = scene->min_y; i < scene->max_y; i += scanline_inc) {
-        Scanline *scanline = &scene->scanlines[i];
-        int j = scanline->start_x >> 8;
+    /* -------------- OPAQUE RAMP FILL -------------- */
+    for (int y = scene->min_y; y < scene->max_y; y += scanline_inc) {
+        Scanline *scanline = &scene->scanlines[y];
+        int j  = scanline->start_x >> 8;
         int k5 = scanline->end_x >> 8;
         int i7 = k5 - j;
 
         if (i7 <= 0) {
             l2 += i2;
-        } else {
-            int ramp_index = scanline->start_s;
-            int ramp_inc = (scanline->end_s - ramp_index) / i7;
+            continue;
+        }
 
-            if (j < -scene->clip_x) {
-                ramp_index += (-scene->clip_x - j) * ramp_inc;
-                j = -scene->clip_x;
-                i7 = k5 - j;
-            }
+        int ramp_index = scanline->start_s;
+        int ramp_inc   = (scanline->end_s - ramp_index) / i7;
 
-            if (k5 > scene->clip_x) {
-                int l5 = scene->clip_x;
-                i7 = l5 - j;
-            }
-
+        if (j < -scene->clip_x) {
+            int diff = -scene->clip_x - j;
+            ramp_index += diff * ramp_inc;
+            j += diff;
+        }
+        if (k5 > scene->clip_x) {
+            k5 = scene->clip_x;
+        }
+        i7 = k5 - j;
+        if (i7 > 0) {
             scene_colour_scanline(scene->raster + (l2 + j), -i7,
                                   scene->gradient_ramp, ramp_index, ramp_inc);
-
-            l2 += i2;
         }
+        l2 += i2;
     }
 }
 #endif /* RENDER_SW */
+
 
 void scene_set_camera(Scene *scene, int x, int y, int z, int yaw, int pitch,
                       int roll, int distance) {
@@ -2743,101 +2766,114 @@ static void scene_initialise_polygon_3d(Scene *scene, int polygon_index) {
     GamePolygon *polygon = scene->visible_polygons[polygon_index];
     GameModel *game_model = polygon->model;
     int face = polygon->face;
-    uint16_t *face_vertices = game_model->face_vertices[face];
+
+    uint16_t *fv = game_model->face_vertices[face]; // indices of vertices
     uint8_t face_vertex_count = game_model->face_vertex_count[face];
     int normal_scale = game_model->normal_scale[face];
-    int project_x_a = game_model->project_vertex_x[face_vertices[0]];
-    int project_y_a = game_model->project_vertex_y[face_vertices[0]];
-    int project_z_a = game_model->project_vertex_z[face_vertices[0]];
 
-    int project_x_delta_ba =
-        game_model->project_vertex_x[face_vertices[1]] - project_x_a;
+    int16_t *px = game_model->project_vertex_x;
+    int16_t *py = game_model->project_vertex_y;
+    int16_t *pz = game_model->project_vertex_z;
 
-    int project_y_delta_ba =
-        game_model->project_vertex_y[face_vertices[1]] - project_y_a;
+    int32_t *vx = game_model->vertex_view_x;
+    int32_t *vy = game_model->vertex_view_y;
 
-    int project_z_delta_ba =
-        game_model->project_vertex_z[face_vertices[1]] - project_z_a;
+    int project_x_a = (int)px[fv[0]];
+    int project_y_a = (int)py[fv[0]];
+    int project_z_a = (int)pz[fv[0]];
 
-    int project_x_delta_ca =
-        game_model->project_vertex_x[face_vertices[2]] - project_x_a;
+    int project_x_b = (int)px[fv[1]];
+    int project_y_b = (int)py[fv[1]];
+    int project_z_b = (int)pz[fv[1]];
 
-    int project_y_delta_ca =
-        game_model->project_vertex_y[face_vertices[2]] - project_y_a;
+    int project_x_c = (int)px[fv[2]];
+    int project_y_c = (int)py[fv[2]];
+    int project_z_c = (int)pz[fv[2]];
 
-    int project_z_delta_ca =
-        game_model->project_vertex_z[face_vertices[2]] - project_z_a;
+    int project_x_delta_ba = project_x_b - project_x_a;
+    int project_y_delta_ba = project_y_b - project_y_a;
+    int project_z_delta_ba = project_z_b - project_z_a;
 
-    int normal_x = project_y_delta_ba * project_z_delta_ca -
-                   project_y_delta_ca * project_z_delta_ba;
+    int project_x_delta_ca = project_x_c - project_x_a;
+    int project_y_delta_ca = project_y_c - project_y_a;
+    int project_z_delta_ca = project_z_c - project_z_a;
 
-    int normal_y = project_z_delta_ba * project_x_delta_ca -
-                   project_z_delta_ca * project_x_delta_ba;
-
-    int normal_z = project_x_delta_ba * project_y_delta_ca -
-                   project_x_delta_ca * project_y_delta_ba;
+    int normal_x = project_y_delta_ba * project_z_delta_ca
+                 - project_y_delta_ca * project_z_delta_ba;
+    int normal_y = project_z_delta_ba * project_x_delta_ca
+                 - project_z_delta_ca * project_x_delta_ba;
+    int normal_z = project_x_delta_ba * project_y_delta_ca
+                 - project_x_delta_ca * project_y_delta_ba;
 
     if (normal_scale == -1) {
-        normal_scale = 0;
+        int max_abs = normal_x;
+        if (abs(normal_y) > abs(max_abs)) max_abs = normal_y;
+        if (abs(normal_z) > abs(max_abs)) max_abs = normal_z;
+        int abs_max = abs(max_abs);
 
-        for (; normal_x > 25000 || normal_y > 25000 || normal_z > 25000 ||
-               normal_x < -25000 || normal_y < -25000 || normal_z < -25000;
-             normal_z >>= 1) {
-            normal_scale++;
-            normal_x >>= 1;
-            normal_y >>= 1;
+        int shift = 0;
+        while (abs_max > 25000) {
+            abs_max >>= 1;
+            shift++;
         }
-
+        normal_scale = shift;
         game_model->normal_scale[face] = normal_scale;
 
-        game_model->normal_magnitude[face] =
-            scene->normal_magnitude *
-            sqrt(normal_x * normal_x + normal_y * normal_y +
-                 normal_z * normal_z);
+        if (shift > 0) {
+            normal_x >>= shift;
+            normal_y >>= shift;
+            normal_z >>= shift;
+        }
+
+        float len = sqrtf((float)(normal_x * (long long)normal_x +
+                                  normal_y * (long long)normal_y +
+                                  normal_z * (long long)normal_z));
+        game_model->normal_magnitude[face] = scene->normal_magnitude * len;
     } else {
         normal_x >>= normal_scale;
         normal_y >>= normal_scale;
         normal_z >>= normal_scale;
     }
 
-    // TODO rename from visibility?
-    polygon->visibility = project_x_a * normal_x + project_y_a * normal_y +
-                          project_z_a * normal_z;
+    polygon->visibility = project_x_a * normal_x
+                        + project_y_a * normal_y
+                        + project_z_a * normal_z;
 
     polygon->normal_x = normal_x;
     polygon->normal_y = normal_y;
     polygon->normal_z = normal_z;
 
-    int min_z = game_model->project_vertex_z[face_vertices[0]];
+    int min_z = (int)pz[fv[0]];
     int max_z = min_z;
-    int min_plane_x = game_model->vertex_view_x[face_vertices[0]];
+
+    int min_plane_x = (int)vx[fv[0]];
     int max_plane_x = min_plane_x;
-    int min_plane_y = game_model->vertex_view_y[face_vertices[0]];
+
+    int min_plane_y = (int)vy[fv[0]];
     int max_plane_y = min_plane_y;
 
     for (int i = 1; i < face_vertex_count; i++) {
-        int project_vertex_z = game_model->project_vertex_z[face_vertices[i]];
+        int idx = fv[i];
 
-        if (project_vertex_z > max_z) {
-            max_z = project_vertex_z;
-        } else if (project_vertex_z < min_z) {
-            min_z = project_vertex_z;
+        int z_val = (int)pz[idx];
+        if (z_val < min_z) {
+            min_z = z_val;
+        } else if (z_val > max_z) {
+            max_z = z_val;
         }
 
-        project_vertex_z = game_model->vertex_view_x[face_vertices[i]];
-
-        if (project_vertex_z > max_plane_x) {
-            max_plane_x = project_vertex_z;
-        } else if (project_vertex_z < min_plane_x) {
-            min_plane_x = project_vertex_z;
+        int x_val = (int)vx[idx];
+        if (x_val < min_plane_x) {
+            min_plane_x = x_val;
+        } else if (x_val > max_plane_x) {
+            max_plane_x = x_val;
         }
 
-        project_vertex_z = game_model->vertex_view_y[face_vertices[i]];
-
-        if (project_vertex_z > max_plane_y) {
-            max_plane_y = project_vertex_z;
-        } else if (project_vertex_z < min_plane_y) {
-            min_plane_y = project_vertex_z;
+        int y_val = (int)vy[idx];
+        if (y_val < min_plane_y) {
+            min_plane_y = y_val;
+        } else if (y_val > max_plane_y) {
+            max_plane_y = y_val;
         }
     }
 
@@ -2851,195 +2887,189 @@ static void scene_initialise_polygon_3d(Scene *scene, int polygon_index) {
 
 static int scene_separate_polygon(GamePolygon *polygon_a,
                                   GamePolygon *polygon_b) {
-    if (polygon_a->min_plane_x >= polygon_b->max_plane_x) {
-        return 1;
-    }
 
-    if (polygon_b->min_plane_x >= polygon_a->max_plane_x) {
-        return 1;
+    if ((polygon_a->min_plane_x >= polygon_b->max_plane_x) ||
+        (polygon_b->min_plane_x >= polygon_a->max_plane_x) ||
+        (polygon_a->min_plane_y >= polygon_b->max_plane_y) ||
+        (polygon_b->min_plane_y >= polygon_a->max_plane_y) ||
+        (polygon_a->min_z >= polygon_b->max_z)) {
+        return 1; /* No overlap */
     }
-
-    if (polygon_a->min_plane_y >= polygon_b->max_plane_y) {
-        return 1;
-    }
-
-    if (polygon_b->min_plane_y >= polygon_a->max_plane_y) {
-        return 1;
-    }
-
-    if (polygon_a->min_z >= polygon_b->max_z) {
-        return 1;
-    }
-
     if (polygon_b->min_z > polygon_a->max_z) {
-        return 0;
+        return 0; /* Overlap is determined false by z-plane alone */
     }
 
     GameModel *game_model_a = polygon_a->model;
     GameModel *game_model_b = polygon_b->model;
+
     int face_a = polygon_a->face;
     int face_b = polygon_b->face;
+
     uint16_t *face_vertices_a = game_model_a->face_vertices[face_a];
     uint16_t *face_vertices_b = game_model_b->face_vertices[face_b];
+
     int face_vertex_count_a = game_model_a->face_vertex_count[face_a];
     int face_vertex_count_b = game_model_b->face_vertex_count[face_b];
 
-    int first_project_x = game_model_b->project_vertex_x[face_vertices_b[0]];
-    int first_project_y = game_model_b->project_vertex_y[face_vertices_b[0]];
-    int first_project_z = game_model_b->project_vertex_z[face_vertices_b[0]];
+    int16_t *px_a = game_model_a->project_vertex_x;
+    int16_t *py_a = game_model_a->project_vertex_y;
+    int16_t *pz_a = game_model_a->project_vertex_z;
+
+    int32_t *vx_a = game_model_a->vertex_view_x;
+    int32_t *vy_a = game_model_a->vertex_view_y;
+
+    int16_t *px_b = game_model_b->project_vertex_x;
+    int16_t *py_b = game_model_b->project_vertex_y;
+    int16_t *pz_b = game_model_b->project_vertex_z;
+
+    int32_t *vx_b = game_model_b->vertex_view_x;
+    int32_t *vy_b = game_model_b->vertex_view_y;
+
+    int first_project_x = (int)px_b[face_vertices_b[0]];
+    int first_project_y = (int)py_b[face_vertices_b[0]];
+    int first_project_z = (int)pz_b[face_vertices_b[0]];
+
     int normal_x = polygon_b->normal_x;
     int normal_y = polygon_b->normal_y;
     int normal_z = polygon_b->normal_z;
     int normal_magnitude = game_model_b->normal_magnitude[face_b];
     int visibility = polygon_b->visibility;
-    int flag = 0;
+
+    int flag = 0;  /* 0 means "not separated yet" */
 
     for (int i = 0; i < face_vertex_count_a; i++) {
-        int vertex_index = face_vertices_a[i];
+        int idx = face_vertices_a[i];
 
-        int magnitude =
-            (first_project_x - game_model_a->project_vertex_x[vertex_index]) *
-                normal_x +
-            (first_project_y - game_model_a->project_vertex_y[vertex_index]) *
-                normal_y +
-            (first_project_z - game_model_a->project_vertex_z[vertex_index]) *
-                normal_z;
+        int dx = first_project_x - (int)px_a[idx];
+        int dy = first_project_y - (int)py_a[idx];
+        int dz = first_project_z - (int)pz_a[idx];
 
-        if ((magnitude >= -normal_magnitude || visibility >= 0) &&
-            (magnitude <= normal_magnitude || visibility <= 0)) {
-            continue;
+        int magnitude = dx * normal_x + dy * normal_y + dz * normal_z;
+
+        int cond1 = (magnitude >= -normal_magnitude || visibility >= 0);
+        int cond2 = (magnitude <=  normal_magnitude || visibility <= 0);
+        if (! (cond1 && cond2)) {
+            flag = 1;
+            break;
         }
-
-        flag = 1;
-        break;
     }
 
     if (!flag) {
         return 1;
     }
 
-    first_project_x = game_model_a->project_vertex_x[face_vertices_a[0]];
-    first_project_y = game_model_a->project_vertex_y[face_vertices_a[0]];
-    first_project_z = game_model_a->project_vertex_z[face_vertices_a[0]];
+    first_project_x = (int)px_a[face_vertices_a[0]];
+    first_project_y = (int)py_a[face_vertices_a[0]];
+    first_project_z = (int)pz_a[face_vertices_a[0]];
+
     normal_x = polygon_a->normal_x;
     normal_y = polygon_a->normal_y;
     normal_z = polygon_a->normal_z;
     normal_magnitude = game_model_a->normal_magnitude[face_a];
     visibility = polygon_a->visibility;
+
     flag = 0;
 
     for (int i = 0; i < face_vertex_count_b; i++) {
-        int vertex_index = face_vertices_b[i];
+        int idx = face_vertices_b[i];
 
-        int magnitude =
-            (first_project_x - game_model_b->project_vertex_x[vertex_index]) *
-                normal_x +
-            (first_project_y - game_model_b->project_vertex_y[vertex_index]) *
-                normal_y +
-            (first_project_z - game_model_b->project_vertex_z[vertex_index]) *
-                normal_z;
+        int dx = first_project_x - (int)px_b[idx];
+        int dy = first_project_y - (int)py_b[idx];
+        int dz = first_project_z - (int)pz_b[idx];
 
-        if ((magnitude >= -normal_magnitude || visibility <= 0) &&
-            (magnitude <= normal_magnitude || visibility >= 0)) {
-            continue;
+        int magnitude = dx * normal_x + dy * normal_y + dz * normal_z;
+
+        int cond1 = (magnitude >= -normal_magnitude || visibility <= 0);
+        int cond2 = (magnitude <=  normal_magnitude || visibility >= 0);
+        if (! (cond1 && cond2)) {
+            flag = 1;
+            break;
         }
-
-        flag = 1;
-        break;
     }
 
     if (!flag) {
         return 1;
     }
 
+    int length_a;
     int *vertex_view_x_a = NULL;
     int *vertex_view_y_a = NULL;
-    int length_a = 0;
 
     if (face_vertex_count_a == 2) {
         length_a = 4;
-
         vertex_view_x_a = alloca(length_a * sizeof(int));
         vertex_view_y_a = alloca(length_a * sizeof(int));
 
-        int first_vertex_index = face_vertices_a[0];
-        int second_vertex_index = face_vertices_a[1];
+        int v0 = face_vertices_a[0];
+        int v1 = face_vertices_a[1];
 
-        vertex_view_x_a[0] =
-            game_model_a->vertex_view_x[first_vertex_index] - 20;
+        int x0 = (int)vx_a[v0];
+        int x1 = (int)vx_a[v1];
+        int y0 = (int)vy_a[v0];
+        int y1 = (int)vy_a[v1];
 
-        vertex_view_x_a[1] =
-            game_model_a->vertex_view_x[second_vertex_index] - 20;
+        vertex_view_x_a[0] = x0 - 20;
+        vertex_view_x_a[1] = x1 - 20;
+        vertex_view_x_a[2] = x1 + 20;
+        vertex_view_x_a[3] = x0 + 20;
 
-        vertex_view_x_a[2] =
-            game_model_a->vertex_view_x[second_vertex_index] + 20;
-
-        vertex_view_x_a[3] =
-            game_model_a->vertex_view_x[first_vertex_index] + 20;
-
-        vertex_view_y_a[0] = vertex_view_y_a[3] =
-            game_model_a->vertex_view_y[first_vertex_index];
-
-        vertex_view_y_a[1] = vertex_view_y_a[2] =
-            game_model_a->vertex_view_y[second_vertex_index];
+        vertex_view_y_a[0] = y0;
+        vertex_view_y_a[1] = y1;
+        vertex_view_y_a[2] = y1;
+        vertex_view_y_a[3] = y0;
     } else {
-        vertex_view_x_a = alloca(face_vertex_count_a * sizeof(int));
-        vertex_view_y_a = alloca(face_vertex_count_a * sizeof(int));
-
-        for (int i = 0; i < face_vertex_count_a; i++) {
-            int vertex_index = face_vertices_a[i];
-            vertex_view_x_a[i] = game_model_a->vertex_view_x[vertex_index];
-            vertex_view_y_a[i] = game_model_a->vertex_view_y[vertex_index];
-        }
-
         length_a = face_vertex_count_a;
+        vertex_view_x_a = alloca(length_a * sizeof(int));
+        vertex_view_y_a = alloca(length_a * sizeof(int));
+
+        for (int i = 0; i < length_a; i++) {
+            int idx = face_vertices_a[i];
+            vertex_view_x_a[i] = (int)vx_a[idx];
+            vertex_view_y_a[i] = (int)vy_a[idx];
+        }
     }
 
+    int length_b;
     int *vertex_view_x_b = NULL;
     int *vertex_view_y_b = NULL;
-    int length_b = 0;
 
     if (face_vertex_count_b == 2) {
         length_b = 4;
-
         vertex_view_x_b = alloca(length_b * sizeof(int));
         vertex_view_y_b = alloca(length_b * sizeof(int));
 
-        int first_vertex_index = face_vertices_b[0];
-        int second_vertex_index = face_vertices_b[1];
+        int v0 = face_vertices_b[0];
+        int v1 = face_vertices_b[1];
 
-        vertex_view_x_b[0] =
-            game_model_b->vertex_view_x[first_vertex_index] - 20;
+        int x0 = (int)vx_b[v0];
+        int x1 = (int)vx_b[v1];
+        int y0 = (int)vy_b[v0];
+        int y1 = (int)vy_b[v1];
 
-        vertex_view_x_b[1] =
-            game_model_b->vertex_view_x[second_vertex_index] - 20;
+        vertex_view_x_b[0] = x0 - 20;
+        vertex_view_x_b[1] = x1 - 20;
+        vertex_view_x_b[2] = x1 + 20;
+        vertex_view_x_b[3] = x0 + 20;
 
-        vertex_view_x_b[2] =
-            game_model_b->vertex_view_x[second_vertex_index] + 20;
-
-        vertex_view_x_b[3] =
-            game_model_b->vertex_view_x[first_vertex_index] + 20;
-
-        vertex_view_y_b[0] = vertex_view_y_b[3] =
-            game_model_b->vertex_view_y[first_vertex_index];
-
-        vertex_view_y_b[1] = vertex_view_y_b[2] =
-            game_model_b->vertex_view_y[second_vertex_index];
+        vertex_view_y_b[0] = y0;
+        vertex_view_y_b[1] = y1;
+        vertex_view_y_b[2] = y1;
+        vertex_view_y_b[3] = y0;
     } else {
-        vertex_view_x_b = alloca(face_vertex_count_b * sizeof(int));
-        vertex_view_y_b = alloca(face_vertex_count_b * sizeof(int));
-
-        for (int i = 0; i < face_vertex_count_b; i++) {
-            int vertex_index = face_vertices_b[i];
-            vertex_view_x_b[i] = game_model_b->vertex_view_x[vertex_index];
-            vertex_view_y_b[i] = game_model_b->vertex_view_y[vertex_index];
-        }
-
         length_b = face_vertex_count_b;
+        vertex_view_x_b = alloca(length_b * sizeof(int));
+        vertex_view_y_b = alloca(length_b * sizeof(int));
+
+        for (int i = 0; i < length_b; i++) {
+            int idx = face_vertices_b[i];
+            vertex_view_x_b[i] = (int)vx_b[idx];
+            vertex_view_y_b[i] = (int)vy_b[idx];
+        }
     }
 
-    return !scene_intersect(vertex_view_x_a, vertex_view_y_a, vertex_view_x_b,
-                            vertex_view_y_b, length_a, length_b);
+    return !scene_intersect(vertex_view_x_a, vertex_view_y_a,
+                            vertex_view_x_b, vertex_view_y_b,
+                            length_a, length_b);
 }
 
 static int scene_heuristic_polygon(GamePolygon *polygon_a,
@@ -3268,29 +3298,37 @@ void scene_scroll_texture(Scene *scene, int id) {
     }
 
     int32_t *colours = scene->texture_pixels[id];
+    int S = SCROLL_TEXTURE_SIZE;
+    int area = SCROLL_TEXTURE_AREA; // = S * S
+    int32_t tmp_row[/* max S */ 512];
+    memcpy(tmp_row, &colours[area - S], S * sizeof(int32_t));
+    memmove(&colours[S],
+            &colours[0],
+            (area - S) * sizeof(int32_t));
 
-    for (int i = 0; i < SCROLL_TEXTURE_SIZE; i++) {
-        int pixel_index = i + SCROLL_TEXTURE_AREA - SCROLL_TEXTURE_SIZE;
-        int colour = colours[pixel_index];
+    memcpy(&colours[0],
+           tmp_row,
+           S * sizeof(int32_t));
 
-        for (int j = 0; j < SCROLL_TEXTURE_SIZE - 1; j++) {
-            colours[pixel_index] = colours[pixel_index - SCROLL_TEXTURE_SIZE];
-            pixel_index -= SCROLL_TEXTURE_SIZE;
-        }
+    int32_t *base_layer = colours;
+    int32_t *layer1 = colours + area;
+    int32_t *layer2 = colours + 2 * area;
+    int32_t *layer3 = colours + 3 * area;
 
-        scene->texture_pixels[id][pixel_index] = colour;
-    }
+    for (int i = 0; i < area; i++) {
+        int32_t c = base_layer[i];
 
-    for (int i = 0; i < SCROLL_TEXTURE_AREA; i++) {
-        int colour = colours[i];
+        int32_t c_sub1 = c - (c >> 3);         // used for layer1
+        int32_t c_sub2 = c - (c >> 2);         // used for layer2
+        int32_t c_sub3 = c_sub2 - (c >> 3);    // c - (c>>2) - (c>>3)
 
-        colours[SCROLL_TEXTURE_AREA + i] = (colour - (colour >> 3)) & 0xf8f8ff;
+        c_sub1 &= 0xf8f8ff;
+        c_sub2 &= 0xf8f8ff;
+        c_sub3 &= 0xf8f8ff;
 
-        colours[SCROLL_TEXTURE_AREA * 2 + i] =
-            (colour - (colour >> 2)) & 0xf8f8ff;
-
-        colours[SCROLL_TEXTURE_AREA * 3 + i] =
-            (colour - (colour >> 2) - (colour >> 3)) & 0xf8f8ff;
+        layer1[i] = c_sub1;
+        layer2[i] = c_sub2;
+        layer3[i] = c_sub3;
     }
 }
 #endif
@@ -3439,99 +3477,106 @@ static int scene_method308(int i, int j, int k, int flag) {
     return flag;
 }
 
+static inline int wrap_a(int i, int len) {
+    // Ensures an index stays within [0..len-1]
+    return (i + len) % len;
+}
+
+static inline int wrap_b(int i, int len) {
+    // Same for polygon B
+    return (i + len) % len;
+}
+
 static int scene_intersect(int *vertex_view_x_a, int *vertex_view_y_a,
                            int *vertex_view_x_b, int *vertex_view_y_b,
                            int length_a, int length_b) {
-    int8_t byte0 = 0;
-    int view_y_a = vertex_view_y_a[0];
+
+    int *xA = vertex_view_x_a;
+    int *yA = vertex_view_y_a;
+    int *xB = vertex_view_x_b;
+    int *yB = vertex_view_y_b;
+
+    int view_y_a = yA[0];
     int k20 = view_y_a;
     int k = 0;
-    int view_y_b = vertex_view_y_b[0];
+    for (int i = 1; i < length_a; i++) {
+        int yVal = yA[i];
+        if (yVal < view_y_a) {
+            view_y_a = yVal;
+            k = i;
+        } else if (yVal > k20) {
+            k20 = yVal;
+        }
+    }
+
+    int view_y_b = yB[0];
     int l20 = view_y_b;
     int i1 = 0;
-
-    for (int i = 1; i < length_a; i++) {
-        if (vertex_view_y_a[i] < view_y_a) {
-            view_y_a = vertex_view_y_a[i];
-            k = i;
-        } else if (vertex_view_y_a[i] > k20) {
-            k20 = vertex_view_y_a[i];
-        }
-    }
-
     for (int i = 1; i < length_b; i++) {
-        if (vertex_view_y_b[i] < view_y_b) {
-            view_y_b = vertex_view_y_b[i];
+        int yVal = yB[i];
+        if (yVal < view_y_b) {
+            view_y_b = yVal;
             i1 = i;
-        } else if (vertex_view_y_b[i] > l20) {
-            l20 = vertex_view_y_b[i];
+        } else if (yVal > l20) {
+            l20 = yVal;
         }
     }
 
-    if (view_y_b >= k20) {
-        return 0;
-    }
-
-    if (view_y_a >= l20) {
+    if (view_y_b >= k20 || view_y_a >= l20) {
         return 0;
     }
 
     int l = 0;
     int j1 = 0;
     int flag = 0;
+    int8_t byte0 = 0;
 
-    if (vertex_view_y_a[k] < vertex_view_y_b[i1]) {
-        for (l = k; vertex_view_y_a[l] < vertex_view_y_b[i1];
-             l = (l + 1) % length_a)
+    if (yA[k] < yB[i1]) {
+        for (l = k; yA[l] < yB[i1]; l = wrap_a(l + 1, length_a))
+            ;
+        for (; yA[k] < yB[i1]; k = wrap_a(k - 1, length_a))
             ;
 
-        for (; vertex_view_y_a[k] < vertex_view_y_b[i1];
-             k = (k - 1 + length_a) % length_a)
-            ;
+        int k1 = scene_method306(xA[wrap_a(k + 1, length_a)],
+                                 yA[wrap_a(k + 1, length_a)],
+                                 xA[k], yA[k],
+                                 yB[i1]);
 
-        int k1 = scene_method306(vertex_view_x_a[(k + 1) % length_a],
-                                 vertex_view_y_a[(k + 1) % length_a],
-                                 vertex_view_x_a[k], vertex_view_y_a[k],
-                                 vertex_view_y_b[i1]);
+        int k6 = scene_method306(xA[wrap_a(l - 1, length_a)],
+                                 yA[wrap_a(l - 1, length_a)],
+                                 xA[l], yA[l],
+                                 yB[i1]);
 
-        int k6 = scene_method306(vertex_view_x_a[(l - 1 + length_a) % length_a],
-                                 vertex_view_y_a[(l - 1 + length_a) % length_a],
-                                 vertex_view_x_a[l], vertex_view_y_a[l],
-                                 vertex_view_y_b[i1]);
-
-        int l10 = vertex_view_x_b[i1];
+        int l10 = xB[i1];
         flag = (k1 < l10) | (k6 < l10);
 
         if (scene_method308(k1, k6, l10, flag)) {
             return 1;
         }
 
-        j1 = (i1 + 1) % length_b;
-        i1 = (i1 - 1 + length_b) % length_b;
+        j1 = wrap_b(i1 + 1, length_b);
+        i1 = wrap_b(i1 - 1, length_b);
 
         if (k == l) {
             byte0 = 1;
         }
     } else {
-        for (j1 = i1; vertex_view_y_b[j1] < vertex_view_y_a[k];
-             j1 = (j1 + 1) % length_b)
+        for (j1 = i1; yB[j1] < yA[k]; j1 = wrap_b(j1 + 1, length_b))
+            ;
+        for (; yB[i1] < yA[k]; i1 = wrap_b(i1 - 1, length_b))
             ;
 
-        for (; vertex_view_y_b[i1] < vertex_view_y_a[k];
-             i1 = (i1 - 1 + length_b) % length_b)
-            ;
+        int l1 = xA[k];
 
-        int l1 = vertex_view_x_a[k];
+        int i11 = scene_method306(xB[wrap_b(i1 + 1, length_b)],
+                                  yB[wrap_b(i1 + 1, length_b)],
+                                  xB[i1], yB[i1],
+                                  yA[k]);
 
-        int i11 = scene_method306(vertex_view_x_b[(i1 + 1) % length_b],
-                                  vertex_view_y_b[(i1 + 1) % length_b],
-                                  vertex_view_x_b[i1], vertex_view_y_b[i1],
-                                  vertex_view_y_a[k]);
-
-        int l15 = scene_method306(
-            vertex_view_x_b[(j1 - 1 + length_b) % length_b],
-            vertex_view_y_b[(j1 - 1 + length_b) % length_b],
-            vertex_view_x_b[j1], vertex_view_y_b[j1], vertex_view_y_a[k]);
+        int l15 = scene_method306(xB[wrap_b(j1 - 1, length_b)],
+                                  yB[wrap_b(j1 - 1, length_b)],
+                                  xB[j1], yB[j1],
+                                  yA[k]);
 
         flag = (l1 < i11) | (l1 < l15);
 
@@ -3539,8 +3584,8 @@ static int scene_intersect(int *vertex_view_x_a, int *vertex_view_y_a,
             return 1;
         }
 
-        l = (k + 1) % length_a;
-        k = (k - 1 + length_a) % length_a;
+        l = wrap_a(k + 1, length_a);
+        k = wrap_a(k - 1, length_a);
 
         if (i1 == j1) {
             byte0 = 2;
@@ -3548,235 +3593,186 @@ static int scene_intersect(int *vertex_view_x_a, int *vertex_view_y_a,
     }
 
     while (byte0 == 0) {
-        if (vertex_view_y_a[k] < vertex_view_y_a[l]) {
-            if (vertex_view_y_a[k] < vertex_view_y_b[i1]) {
-                if (vertex_view_y_a[k] < vertex_view_y_b[j1]) {
-                    int i2 = vertex_view_x_a[k];
+        if (yA[k] < yA[l]) {
+            if (yA[k] < yB[i1]) {
+                if (yA[k] < yB[j1]) {
+                    int i2 = xA[k];
 
-                    int l6 = scene_method306(
-                        vertex_view_x_a[(l - 1 + length_a) % length_a],
-                        vertex_view_y_a[(l - 1 + length_a) % length_a],
-                        vertex_view_x_a[l], vertex_view_y_a[l],
-                        vertex_view_y_a[k]);
+                    int l6 = scene_method306(xA[wrap_a(l - 1, length_a)],
+                                             yA[wrap_a(l - 1, length_a)],
+                                             xA[l], yA[l], yA[k]);
 
-                    int j11 = scene_method306(
-                        vertex_view_x_b[(i1 + 1) % length_b],
-                        vertex_view_y_b[(i1 + 1) % length_b],
-                        vertex_view_x_b[i1], vertex_view_y_b[i1],
-                        vertex_view_y_a[k]);
+                    int j11 = scene_method306(xB[wrap_b(i1 + 1, length_b)],
+                                              yB[wrap_b(i1 + 1, length_b)],
+                                              xB[i1], yB[i1], yA[k]);
 
-                    int i16 = scene_method306(
-                        vertex_view_x_b[(j1 - 1 + length_b) % length_b],
-                        vertex_view_y_b[(j1 - 1 + length_b) % length_b],
-                        vertex_view_x_b[j1], vertex_view_y_b[j1],
-                        vertex_view_y_a[k]);
+                    int i16 = scene_method306(xB[wrap_b(j1 - 1, length_b)],
+                                              yB[wrap_b(j1 - 1, length_b)],
+                                              xB[j1], yB[j1], yA[k]);
 
                     if (scene_method307(i2, l6, j11, i16, flag)) {
                         return 1;
                     }
-
-                    k = (k - 1 + length_a) % length_a;
+                    k = wrap_a(k - 1, length_a);
 
                     if (k == l) {
                         byte0 = 1;
                     }
                 } else {
-                    int j2 = scene_method306(
-                        vertex_view_x_a[(k + 1) % length_a],
-                        vertex_view_y_a[(k + 1) % length_a], vertex_view_x_a[k],
-                        vertex_view_y_a[k], vertex_view_y_b[j1]);
+                    int j2 = scene_method306(xA[wrap_a(k + 1, length_a)],
+                                             yA[wrap_a(k + 1, length_a)],
+                                             xA[k], yA[k], yB[j1]);
 
-                    int i7 = scene_method306(
-                        vertex_view_x_a[(l - 1 + length_a) % length_a],
-                        vertex_view_y_a[(l - 1 + length_a) % length_a],
-                        vertex_view_x_a[l], vertex_view_y_a[l],
-                        vertex_view_y_b[j1]);
+                    int i7 = scene_method306(xA[wrap_a(l - 1, length_a)],
+                                             yA[wrap_a(l - 1, length_a)],
+                                             xA[l], yA[l], yB[j1]);
 
-                    int k11 = scene_method306(
-                        vertex_view_x_b[(i1 + 1) % length_b],
-                        vertex_view_y_b[(i1 + 1) % length_b],
-                        vertex_view_x_b[i1], vertex_view_y_b[i1],
-                        vertex_view_y_b[j1]);
+                    int k11 = scene_method306(xB[wrap_b(i1 + 1, length_b)],
+                                              yB[wrap_b(i1 + 1, length_b)],
+                                              xB[i1], yB[i1], yB[j1]);
 
-                    int j16 = vertex_view_x_b[j1];
+                    int j16 = xB[j1];
 
                     if (scene_method307(j2, i7, k11, j16, flag)) {
                         return 1;
                     }
-
-                    j1 = (j1 + 1) % length_b;
-
+                    j1 = wrap_b(j1 + 1, length_b);
                     if (i1 == j1) {
                         byte0 = 2;
                     }
                 }
-            } else if (vertex_view_y_b[i1] < vertex_view_y_b[j1]) {
-                int k2 = scene_method306(vertex_view_x_a[(k + 1) % length_a],
-                                         vertex_view_y_a[(k + 1) % length_a],
-                                         vertex_view_x_a[k], vertex_view_y_a[k],
-                                         vertex_view_y_b[i1]);
+            } else if (yB[i1] < yB[j1]) {
+                int k2 = scene_method306(xA[wrap_a(k + 1, length_a)],
+                                         yA[wrap_a(k + 1, length_a)],
+                                         xA[k], yA[k], yB[i1]);
 
-                int j7 = scene_method306(
-                    vertex_view_x_a[(l - 1 + length_a) % length_a],
-                    vertex_view_y_a[(l - 1 + length_a) % length_a],
-                    vertex_view_x_a[l], vertex_view_y_a[l],
-                    vertex_view_y_b[i1]);
+                int j7 = scene_method306(xA[wrap_a(l - 1, length_a)],
+                                         yA[wrap_a(l - 1, length_a)],
+                                         xA[l], yA[l], yB[i1]);
 
-                int l11 = vertex_view_x_b[i1];
+                int l11 = xB[i1];
 
-                int k16 = scene_method306(
-                    vertex_view_x_b[(j1 - 1 + length_b) % length_b],
-                    vertex_view_y_b[(j1 - 1 + length_b) % length_b],
-                    vertex_view_x_b[j1], vertex_view_y_b[j1],
-                    vertex_view_y_b[i1]);
+                int k16 = scene_method306(xB[wrap_b(j1 - 1, length_b)],
+                                          yB[wrap_b(j1 - 1, length_b)],
+                                          xB[j1], yB[j1], yB[i1]);
 
                 if (scene_method307(k2, j7, l11, k16, flag)) {
                     return 1;
                 }
-
-                i1 = (i1 - 1 + length_b) % length_b;
-
+                i1 = wrap_b(i1 - 1, length_b);
                 if (i1 == j1) {
                     byte0 = 2;
                 }
             } else {
-                int l2 = scene_method306(vertex_view_x_a[(k + 1) % length_a],
-                                         vertex_view_y_a[(k + 1) % length_a],
-                                         vertex_view_x_a[k], vertex_view_y_a[k],
-                                         vertex_view_y_b[j1]);
+                int l2 = scene_method306(xA[wrap_a(k + 1, length_a)],
+                                         yA[wrap_a(k + 1, length_a)],
+                                         xA[k], yA[k], yB[j1]);
 
-                int k7 = scene_method306(
-                    vertex_view_x_a[(l - 1 + length_a) % length_a],
-                    vertex_view_y_a[(l - 1 + length_a) % length_a],
-                    vertex_view_x_a[l], vertex_view_y_a[l],
-                    vertex_view_y_b[j1]);
+                int k7 = scene_method306(xA[wrap_a(l - 1, length_a)],
+                                         yA[wrap_a(l - 1, length_a)],
+                                         xA[l], yA[l], yB[j1]);
 
-                int i12 = scene_method306(
-                    vertex_view_x_b[(i1 + 1) % length_b],
-                    vertex_view_y_b[(i1 + 1) % length_b], vertex_view_x_b[i1],
-                    vertex_view_y_b[i1], vertex_view_y_b[j1]);
+                int i12 = scene_method306(xB[wrap_b(i1 + 1, length_b)],
+                                          yB[wrap_b(i1 + 1, length_b)],
+                                          xB[i1], yB[i1], yB[j1]);
 
-                int l16 = vertex_view_x_b[j1];
+                int l16 = xB[j1];
 
                 if (scene_method307(l2, k7, i12, l16, flag)) {
                     return 1;
                 }
-
-                j1 = (j1 + 1) % length_b;
-
+                j1 = wrap_b(j1 + 1, length_b);
                 if (i1 == j1) {
                     byte0 = 2;
                 }
             }
-        } else if (vertex_view_y_a[l] < vertex_view_y_b[i1]) {
-            if (vertex_view_y_a[l] < vertex_view_y_b[j1]) {
-                int i3 = scene_method306(vertex_view_x_a[(k + 1) % length_a],
-                                         vertex_view_y_a[(k + 1) % length_a],
-                                         vertex_view_x_a[k], vertex_view_y_a[k],
-                                         vertex_view_y_a[l]);
+        } else if (yA[l] < yB[i1]) {
+            if (yA[l] < yB[j1]) {
+                int i3 = scene_method306(xA[wrap_a(k + 1, length_a)],
+                                         yA[wrap_a(k + 1, length_a)],
+                                         xA[k], yA[k], yA[l]);
 
-                int l7 = vertex_view_x_a[l];
+                int l7 = xA[l];
 
-                int j12 = scene_method306(
-                    vertex_view_x_b[(i1 + 1) % length_b],
-                    vertex_view_y_b[(i1 + 1) % length_b], vertex_view_x_b[i1],
-                    vertex_view_y_b[i1], vertex_view_y_a[l]);
+                int j12 = scene_method306(xB[wrap_b(i1 + 1, length_b)],
+                                          yB[wrap_b(i1 + 1, length_b)],
+                                          xB[i1], yB[i1], yA[l]);
 
-                int i17 = scene_method306(
-                    vertex_view_x_b[(j1 - 1 + length_b) % length_b],
-                    vertex_view_y_b[(j1 - 1 + length_b) % length_b],
-                    vertex_view_x_b[j1], vertex_view_y_b[j1],
-                    vertex_view_y_a[l]);
+                int i17 = scene_method306(xB[wrap_b(j1 - 1, length_b)],
+                                          yB[wrap_b(j1 - 1, length_b)],
+                                          xB[j1], yB[j1], yA[l]);
 
                 if (scene_method307(i3, l7, j12, i17, flag)) {
                     return 1;
                 }
-
-                l = (l + 1) % length_a;
-
+                l = wrap_a(l + 1, length_a);
                 if (k == l) {
                     byte0 = 1;
                 }
             } else {
-                int j3 = scene_method306(vertex_view_x_a[(k + 1) % length_a],
-                                         vertex_view_y_a[(k + 1) % length_a],
-                                         vertex_view_x_a[k], vertex_view_y_a[k],
-                                         vertex_view_y_b[j1]);
+                int j3 = scene_method306(xA[wrap_a(k + 1, length_a)],
+                                         yA[wrap_a(k + 1, length_a)],
+                                         xA[k], yA[k], yB[j1]);
 
-                int i8 = scene_method306(
-                    vertex_view_x_a[(l - 1 + length_a) % length_a],
-                    vertex_view_y_a[(l - 1 + length_a) % length_a],
-                    vertex_view_x_a[l], vertex_view_y_a[l],
-                    vertex_view_y_b[j1]);
+                int i8 = scene_method306(xA[wrap_a(l - 1, length_a)],
+                                         yA[wrap_a(l - 1, length_a)],
+                                         xA[l], yA[l], yB[j1]);
 
-                int k12 = scene_method306(
-                    vertex_view_x_b[(i1 + 1) % length_b],
-                    vertex_view_y_b[(i1 + 1) % length_b], vertex_view_x_b[i1],
-                    vertex_view_y_b[i1], vertex_view_y_b[j1]);
+                int k12 = scene_method306(xB[wrap_b(i1 + 1, length_b)],
+                                          yB[wrap_b(i1 + 1, length_b)],
+                                          xB[i1], yB[i1], yB[j1]);
 
-                int j17 = vertex_view_x_b[j1];
+                int j17 = xB[j1];
 
                 if (scene_method307(j3, i8, k12, j17, flag)) {
                     return 1;
                 }
-
-                j1 = (j1 + 1) % length_b;
-
+                j1 = wrap_b(j1 + 1, length_b);
                 if (i1 == j1) {
                     byte0 = 2;
                 }
             }
-        } else if (vertex_view_y_b[i1] < vertex_view_y_b[j1]) {
-            int k3 = scene_method306(vertex_view_x_a[(k + 1) % length_a],
-                                     vertex_view_y_a[(k + 1) % length_a],
-                                     vertex_view_x_a[k], vertex_view_y_a[k],
-                                     vertex_view_y_b[i1]);
+        } else if (yB[i1] < yB[j1]) {
+            int k3 = scene_method306(xA[wrap_a(k + 1, length_a)],
+                                     yA[wrap_a(k + 1, length_a)],
+                                     xA[k], yA[k], yB[i1]);
 
-            int j8 = scene_method306(
-                vertex_view_x_a[(l - 1 + length_a) % length_a],
-                vertex_view_y_a[(l - 1 + length_a) % length_a],
-                vertex_view_x_a[l], vertex_view_y_a[l], vertex_view_y_b[i1]);
+            int j8 = scene_method306(xA[wrap_a(l - 1, length_a)],
+                                     yA[wrap_a(l - 1, length_a)],
+                                     xA[l], yA[l], yB[i1]);
 
-            int l12 = vertex_view_x_b[i1];
+            int l12 = xB[i1];
 
-            int k17 = scene_method306(
-                vertex_view_x_b[(j1 - 1 + length_b) % length_b],
-                vertex_view_y_b[(j1 - 1 + length_b) % length_b],
-                vertex_view_x_b[j1], vertex_view_y_b[j1], vertex_view_y_b[i1]);
+            int k17 = scene_method306(xB[wrap_b(j1 - 1, length_b)],
+                                      yB[wrap_b(j1 - 1, length_b)],
+                                      xB[j1], yB[j1], yB[i1]);
 
             if (scene_method307(k3, j8, l12, k17, flag)) {
                 return 1;
             }
-
-            i1 = (i1 - 1 + length_b) % length_b;
-
+            i1 = wrap_b(i1 - 1, length_b);
             if (i1 == j1) {
                 byte0 = 2;
             }
         } else {
-            int l3 = scene_method306(vertex_view_x_a[(k + 1) % length_a],
-                                     vertex_view_y_a[(k + 1) % length_a],
-                                     vertex_view_x_a[k], vertex_view_y_a[k],
-                                     vertex_view_y_b[j1]);
+            int l3 = scene_method306(xA[wrap_a(k + 1, length_a)],
+                                     yA[wrap_a(k + 1, length_a)],
+                                     xA[k], yA[k], yB[j1]);
 
-            int k8 = scene_method306(
-                vertex_view_x_a[(l - 1 + length_a) % length_a],
-                vertex_view_y_a[(l - 1 + length_a) % length_a],
-                vertex_view_x_a[l], vertex_view_y_a[l], vertex_view_y_b[j1]);
+            int k8 = scene_method306(xA[wrap_a(l - 1, length_a)],
+                                     yA[wrap_a(l - 1, length_a)],
+                                     xA[l], yA[l], yB[j1]);
 
-            int i13 = scene_method306(vertex_view_x_b[(i1 + 1) % length_b],
-                                      vertex_view_y_b[(i1 + 1) % length_b],
-                                      vertex_view_x_b[i1], vertex_view_y_b[i1],
-                                      vertex_view_y_b[j1]);
+            int i13 = scene_method306(xB[wrap_b(i1 + 1, length_b)],
+                                      yB[wrap_b(i1 + 1, length_b)],
+                                      xB[i1], yB[i1], yB[j1]);
 
-            int l17 = vertex_view_x_b[j1];
+            int l17 = xB[j1];
 
             if (scene_method307(l3, k8, i13, l17, flag)) {
                 return 1;
             }
-
-            j1 = (j1 + 1) % length_b;
-
+            j1 = wrap_b(j1 + 1, length_b);
             if (i1 == j1) {
                 byte0 = 2;
             }
@@ -3784,101 +3780,83 @@ static int scene_intersect(int *vertex_view_x_a, int *vertex_view_y_a,
     }
 
     while (byte0 == 1) {
-        if (vertex_view_y_a[k] < vertex_view_y_b[i1]) {
-            if (vertex_view_y_a[k] < vertex_view_y_b[j1]) {
-                int i4 = vertex_view_x_a[k];
+        if (yA[k] < yB[i1]) {
+            if (yA[k] < yB[j1]) {
+                int i4 = xA[k];
 
-                int j13 = scene_method306(
-                    vertex_view_x_b[(i1 + 1) % length_b],
-                    vertex_view_y_b[(i1 + 1) % length_b], vertex_view_x_b[i1],
-                    vertex_view_y_b[i1], vertex_view_y_a[k]);
+                int j13 = scene_method306(xB[wrap_b(i1 + 1, length_b)],
+                                          yB[wrap_b(i1 + 1, length_b)],
+                                          xB[i1], yB[i1], yA[k]);
 
-                int i18 = scene_method306(
-                    vertex_view_x_b[(j1 - 1 + length_b) % length_b],
-                    vertex_view_y_b[(j1 - 1 + length_b) % length_b],
-                    vertex_view_x_b[j1], vertex_view_y_b[j1],
-                    vertex_view_y_a[k]);
+                int i18 = scene_method306(xB[wrap_b(j1 - 1, length_b)],
+                                          yB[wrap_b(j1 - 1, length_b)],
+                                          xB[j1], yB[j1], yA[k]);
 
                 return scene_method308(j13, i18, i4, !flag);
             }
 
-            int j4 = scene_method306(vertex_view_x_a[(k + 1) % length_a],
-                                     vertex_view_y_a[(k + 1) % length_a],
-                                     vertex_view_x_a[k], vertex_view_y_a[k],
-                                     vertex_view_y_b[j1]);
+            int j4 = scene_method306(xA[wrap_a(k + 1, length_a)],
+                                     yA[wrap_a(k + 1, length_a)],
+                                     xA[k], yA[k], yB[j1]);
 
-            int l8 = scene_method306(
-                vertex_view_x_a[(l - 1 + length_a) % length_a],
-                vertex_view_y_a[(l - 1 + length_a) % length_a],
-                vertex_view_x_a[l], vertex_view_y_a[l], vertex_view_y_b[j1]);
+            int l8 = scene_method306(xA[wrap_a(l - 1, length_a)],
+                                     yA[wrap_a(l - 1, length_a)],
+                                     xA[l], yA[l], yB[j1]);
 
-            int k13 = scene_method306(vertex_view_x_b[(i1 + 1) % length_b],
-                                      vertex_view_y_b[(i1 + 1) % length_b],
-                                      vertex_view_x_b[i1], vertex_view_y_b[i1],
-                                      vertex_view_y_b[j1]);
+            int k13 = scene_method306(xB[wrap_b(i1 + 1, length_b)],
+                                      yB[wrap_b(i1 + 1, length_b)],
+                                      xB[i1], yB[i1], yB[j1]);
 
-            int j18 = vertex_view_x_b[j1];
+            int j18 = xB[j1];
 
             if (scene_method307(j4, l8, k13, j18, flag)) {
                 return 1;
             }
-
-            j1 = (j1 + 1) % length_b;
-
+            j1 = wrap_b(j1 + 1, length_b);
             if (i1 == j1) {
                 byte0 = 0;
             }
-        } else if (vertex_view_y_b[i1] < vertex_view_y_b[j1]) {
-            int k4 = scene_method306(vertex_view_x_a[(k + 1) % length_a],
-                                     vertex_view_y_a[(k + 1) % length_a],
-                                     vertex_view_x_a[k], vertex_view_y_a[k],
-                                     vertex_view_y_b[i1]);
+        } else if (yB[i1] < yB[j1]) {
+            int k4 = scene_method306(xA[wrap_a(k + 1, length_a)],
+                                     yA[wrap_a(k + 1, length_a)],
+                                     xA[k], yA[k], yB[i1]);
 
-            int i9 = scene_method306(
-                vertex_view_x_a[(l - 1 + length_a) % length_a],
-                vertex_view_y_a[(l - 1 + length_a) % length_a],
-                vertex_view_x_a[l], vertex_view_y_a[l], vertex_view_y_b[i1]);
+            int i9 = scene_method306(xA[wrap_a(l - 1, length_a)],
+                                     yA[wrap_a(l - 1, length_a)],
+                                     xA[l], yA[l], yB[i1]);
 
-            int l13 = vertex_view_x_b[i1];
+            int l13 = xB[i1];
 
-            int k18 = scene_method306(
-                vertex_view_x_b[(j1 - 1 + length_b) % length_b],
-                vertex_view_y_b[(j1 - 1 + length_b) % length_b],
-                vertex_view_x_b[j1], vertex_view_y_b[j1], vertex_view_y_b[i1]);
+            int k18 = scene_method306(xB[wrap_b(j1 - 1, length_b)],
+                                      yB[wrap_b(j1 - 1, length_b)],
+                                      xB[j1], yB[j1], yB[i1]);
 
             if (scene_method307(k4, i9, l13, k18, flag)) {
                 return 1;
             }
-
-            i1 = (i1 - 1 + length_b) % length_b;
-
+            i1 = wrap_b(i1 - 1, length_b);
             if (i1 == j1) {
                 byte0 = 0;
             }
         } else {
-            int l4 = scene_method306(vertex_view_x_a[(k + 1) % length_a],
-                                     vertex_view_y_a[(k + 1) % length_a],
-                                     vertex_view_x_a[k], vertex_view_y_a[k],
-                                     vertex_view_y_b[j1]);
+            int l4 = scene_method306(xA[wrap_a(k + 1, length_a)],
+                                     yA[wrap_a(k + 1, length_a)],
+                                     xA[k], yA[k], yB[j1]);
 
-            int j9 = scene_method306(
-                vertex_view_x_a[(l - 1 + length_a) % length_a],
-                vertex_view_y_a[(l - 1 + length_a) % length_a],
-                vertex_view_x_a[l], vertex_view_y_a[l], vertex_view_y_b[j1]);
+            int j9 = scene_method306(xA[wrap_a(l - 1, length_a)],
+                                     yA[wrap_a(l - 1, length_a)],
+                                     xA[l], yA[l], yB[j1]);
 
-            int i14 = scene_method306(vertex_view_x_b[(i1 + 1) % length_b],
-                                      vertex_view_y_b[(i1 + 1) % length_b],
-                                      vertex_view_x_b[i1], vertex_view_y_b[i1],
-                                      vertex_view_y_b[j1]);
+            int i14 = scene_method306(xB[wrap_b(i1 + 1, length_b)],
+                                      yB[wrap_b(i1 + 1, length_b)],
+                                      xB[i1], yB[i1], yB[j1]);
 
-            int l18 = vertex_view_x_b[j1];
+            int l18 = xB[j1];
 
             if (scene_method307(l4, j9, i14, l18, flag)) {
                 return 1;
             }
-
-            j1 = (j1 + 1) % length_b;
-
+            j1 = wrap_b(j1 + 1, length_b);
             if (i1 == j1) {
                 byte0 = 0;
             }
@@ -3886,134 +3864,114 @@ static int scene_intersect(int *vertex_view_x_a, int *vertex_view_y_a,
     }
 
     while (byte0 == 2) {
-        if (vertex_view_y_b[i1] < vertex_view_y_a[k]) {
-            if (vertex_view_y_b[i1] < vertex_view_y_a[l]) {
-                int i5 = scene_method306(vertex_view_x_a[(k + 1) % length_a],
-                                         vertex_view_y_a[(k + 1) % length_a],
-                                         vertex_view_x_a[k], vertex_view_y_a[k],
-                                         vertex_view_y_b[i1]);
+        if (yB[i1] < yA[k]) {
+            if (yB[i1] < yA[l]) {
+                int i5 = scene_method306(xA[wrap_a(k + 1, length_a)],
+                                         yA[wrap_a(k + 1, length_a)],
+                                         xA[k], yA[k], yB[i1]);
 
-                int k9 = scene_method306(
-                    vertex_view_x_a[(l - 1 + length_a) % length_a],
-                    vertex_view_y_a[(l - 1 + length_a) % length_a],
-                    vertex_view_x_a[l], vertex_view_y_a[l],
-                    vertex_view_y_b[i1]);
+                int k9 = scene_method306(xA[wrap_a(l - 1, length_a)],
+                                         yA[wrap_a(l - 1, length_a)],
+                                         xA[l], yA[l], yB[i1]);
 
-                int j14 = vertex_view_x_b[i1];
+                int j14 = xB[i1];
 
                 return scene_method308(i5, k9, j14, flag);
             }
 
-            int j5 = scene_method306(vertex_view_x_a[(k + 1) % length_a],
-                                     vertex_view_y_a[(k + 1) % length_a],
-                                     vertex_view_x_a[k], vertex_view_y_a[k],
-                                     vertex_view_y_a[l]);
+            int j5 = scene_method306(xA[wrap_a(k + 1, length_a)],
+                                     yA[wrap_a(k + 1, length_a)],
+                                     xA[k], yA[k], yA[l]);
 
-            int l9 = vertex_view_x_a[l];
+            int l9 = xA[l];
 
-            int k14 = scene_method306(vertex_view_x_b[(i1 + 1) % length_b],
-                                      vertex_view_y_b[(i1 + 1) % length_b],
-                                      vertex_view_x_b[i1], vertex_view_y_b[i1],
-                                      vertex_view_y_a[l]);
+            int k14 = scene_method306(xB[wrap_b(i1 + 1, length_b)],
+                                      yB[wrap_b(i1 + 1, length_b)],
+                                      xB[i1], yB[i1], yA[l]);
 
-            int i19 = scene_method306(
-                vertex_view_x_b[(j1 - 1 + length_b) % length_b],
-                vertex_view_y_b[(j1 - 1 + length_b) % length_b],
-                vertex_view_x_b[j1], vertex_view_y_b[j1], vertex_view_y_a[l]);
+            int i19 = scene_method306(xB[wrap_b(j1 - 1, length_b)],
+                                      yB[wrap_b(j1 - 1, length_b)],
+                                      xB[j1], yB[j1], yA[l]);
 
             if (scene_method307(j5, l9, k14, i19, flag)) {
                 return 1;
             }
-
-            l = (l + 1) % length_a;
-
+            l = wrap_a(l + 1, length_a);
             if (k == l) {
                 byte0 = 0;
             }
-        } else if (vertex_view_y_a[k] < vertex_view_y_a[l]) {
-            int k5 = vertex_view_x_a[k];
+        } else if (yA[k] < yA[l]) {
+            int k5 = xA[k];
 
-            int i10 = scene_method306(
-                vertex_view_x_a[(l - 1 + length_a) % length_a],
-                vertex_view_y_a[(l - 1 + length_a) % length_a],
-                vertex_view_x_a[l], vertex_view_y_a[l], vertex_view_y_a[k]);
+            int i10 = scene_method306(xA[wrap_a(l - 1, length_a)],
+                                      yA[wrap_a(l - 1, length_a)],
+                                      xA[l], yA[l], yA[k]);
 
-            int l14 = scene_method306(vertex_view_x_b[(i1 + 1) % length_b],
-                                      vertex_view_y_b[(i1 + 1) % length_b],
-                                      vertex_view_x_b[i1], vertex_view_y_b[i1],
-                                      vertex_view_y_a[k]);
+            int l14 = scene_method306(xB[wrap_b(i1 + 1, length_b)],
+                                      yB[wrap_b(i1 + 1, length_b)],
+                                      xB[i1], yB[i1], yA[k]);
 
-            int j19 = scene_method306(
-                vertex_view_x_b[(j1 - 1 + length_b) % length_b],
-                vertex_view_y_b[(j1 - 1 + length_b) % length_b],
-                vertex_view_x_b[j1], vertex_view_y_b[j1], vertex_view_y_a[k]);
+            int j19 = scene_method306(xB[wrap_b(j1 - 1, length_b)],
+                                      yB[wrap_b(j1 - 1, length_b)],
+                                      xB[j1], yB[j1], yA[k]);
 
             if (scene_method307(k5, i10, l14, j19, flag)) {
                 return 1;
             }
-
-            k = (k - 1 + length_a) % length_a;
-
+            k = wrap_a(k - 1, length_a);
             if (k == l) {
                 byte0 = 0;
             }
         } else {
-            int l5 = scene_method306(vertex_view_x_a[(k + 1) % length_a],
-                                     vertex_view_y_a[(k + 1) % length_a],
-                                     vertex_view_x_a[k], vertex_view_y_a[k],
-                                     vertex_view_y_a[l]);
+            int l5 = scene_method306(xA[wrap_a(k + 1, length_a)],
+                                     yA[wrap_a(k + 1, length_a)],
+                                     xA[k], yA[k], yA[l]);
 
-            int j10 = vertex_view_x_a[l];
+            int j10 = xA[l];
 
-            int i15 = scene_method306(vertex_view_x_b[(i1 + 1) % length_b],
-                                      vertex_view_y_b[(i1 + 1) % length_b],
-                                      vertex_view_x_b[i1], vertex_view_y_b[i1],
-                                      vertex_view_y_a[l]);
+            int i15 = scene_method306(xB[wrap_b(i1 + 1, length_b)],
+                                      yB[wrap_b(i1 + 1, length_b)],
+                                      xB[i1], yB[i1], yA[l]);
 
-            int k19 = scene_method306(
-                vertex_view_x_b[(j1 - 1 + length_b) % length_b],
-                vertex_view_y_b[(j1 - 1 + length_b) % length_b],
-                vertex_view_x_b[j1], vertex_view_y_b[j1], vertex_view_y_a[l]);
+            int k19 = scene_method306(xB[wrap_b(j1 - 1, length_b)],
+                                      yB[wrap_b(j1 - 1, length_b)],
+                                      xB[j1], yB[j1], yA[l]);
 
             if (scene_method307(l5, j10, i15, k19, flag)) {
                 return 1;
             }
-
-            l = (l + 1) % length_a;
-
+            l = wrap_a(l + 1, length_a);
             if (k == l) {
                 byte0 = 0;
             }
         }
     }
 
-    if (vertex_view_y_a[k] < vertex_view_y_b[i1]) {
-        int i6 = vertex_view_x_a[k];
+    if (yA[k] < yB[i1]) {
+        int i6 = xA[k];
 
-        int j15 = scene_method306(vertex_view_x_b[(i1 + 1) % length_b],
-                                  vertex_view_y_b[(i1 + 1) % length_b],
-                                  vertex_view_x_b[i1], vertex_view_y_b[i1],
-                                  vertex_view_y_a[k]);
+        int j15 = scene_method306(xB[wrap_b(i1 + 1, length_b)],
+                                  yB[wrap_b(i1 + 1, length_b)],
+                                  xB[i1], yB[i1], yA[k]);
 
-        int l19 = scene_method306(
-            vertex_view_x_b[(j1 - 1 + length_b) % length_b],
-            vertex_view_y_b[(j1 - 1 + length_b) % length_b],
-            vertex_view_x_b[j1], vertex_view_y_b[j1], vertex_view_y_a[k]);
+        int l19 = scene_method306(xB[wrap_b(j1 - 1, length_b)],
+                                  yB[wrap_b(j1 - 1, length_b)],
+                                  xB[j1], yB[j1], yA[k]);
 
         return scene_method308(j15, l19, i6, !flag);
     }
 
-    int j6 =
-        scene_method306(vertex_view_x_a[(k + 1) % length_a],
-                        vertex_view_y_a[(k + 1) % length_a], vertex_view_x_a[k],
-                        vertex_view_y_a[k], vertex_view_y_b[i1]);
+    int j6 = scene_method306(xA[wrap_a(k + 1, length_a)],
+                             yA[wrap_a(k + 1, length_a)],
+                             xA[k], yA[k],
+                             yB[i1]);
 
-    int k10 = scene_method306(vertex_view_x_a[(l - 1 + length_a) % length_a],
-                              vertex_view_y_a[(l - 1 + length_a) % length_a],
-                              vertex_view_x_a[l], vertex_view_y_a[l],
-                              vertex_view_y_b[i1]);
+    int k10 = scene_method306(xA[wrap_a(l - 1, length_a)],
+                              yA[wrap_a(l - 1, length_a)],
+                              xA[l], yA[l],
+                              yB[i1]);
 
-    int k15 = vertex_view_x_b[i1];
+    int k15 = xB[i1];
 
     return scene_method308(j6, k10, k15, flag);
 }
