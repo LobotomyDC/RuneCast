@@ -1,6 +1,3 @@
-USE_LOCOLOUR ?= 1
-USE_TOONSCAPE ?= 1
-
 TARGET = mudclient.elf
 
 # Updated source paths
@@ -14,6 +11,9 @@ SRC := $(filter-out src/mudclient-sdl2.c src/mudclient-sdl.c, $(SRC))
 SRC := $(filter-out src/mudclient-sdl12.c, $(SRC))  # Avoid duplicates
 SRC += src/mudclient-sdl12.c  # Include only once
 
+# Exclude non-Dreamcast source files
+SRC := $(filter-out src/mudclient-wii.c src/mudclient-3ds.c src/scene-3ds-gl.c, $(SRC))
+
 # Use KOS' default SDL library
 SDL_CFLAGS = -I/opt/toolchains/dc/kos-ports/include/SDL
 SDL_LDFLAGS = -L/opt/toolchains/dc/kos-ports/lib -lSDL -lSDL_ttf
@@ -22,12 +22,12 @@ SDL_LDFLAGS = -L/opt/toolchains/dc/kos-ports/lib -lSDL -lSDL_ttf
 CFLAGS += -DSDL12
 CFLAGS += -fwrapv -std=gnu99 -DRENDER_SW -DSDL_MAIN_HANDLED -DREVISION_177
 CFLAGS += $(SDL_CFLAGS)
-#CFLAGS += -Isrc/lib/rsa  # Ensure include path for rsa.h
+#CFLAGS += -Isrc/lib/rsa  # Include path for rsa.h
 
 # GLdc Configuration (Enabled with `make GLDC=1`)
 ifdef GLDC
     $(info Building with GLdc)
-    CFLAGS += -DLEGACY_GL -DRENDER_GL
+    CFLAGS += -DRENDER_GL
     CFLAGS += -I/opt/toolchains/dc/kos-ports/GLdc/include
     LDFLAGS += -lGLdc
 else
@@ -37,7 +37,7 @@ endif
 # Suppress specific warnings
 CFLAGS += -Wno-redundant-decls -Wno-unused-function -Wno-unused-variable
 CFLAGS += -Wno-sign-compare -Wno-pointer-sign
-CFLAGS += -Wno-strict-aliasing -Wno-implicit-function-declaration
+CFLAGS += -Wno-strict-aliasing #-Wno-implicit-function-declaration
 
 # Simplified linker flags
 LDFLAGS += $(SDL_LDFLAGS)
@@ -50,7 +50,7 @@ ifdef DEBUG
 CFLAGS += -Wall -Wextra -pedantic -g -v
 LDFLAGS += -v
 else
-CFLAGS += -O3 -ffast-math
+CFLAGS += -O4 -ffast-math -lto=auto
 LDFLAGS += -s
 endif
 
