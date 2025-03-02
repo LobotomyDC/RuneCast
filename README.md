@@ -56,8 +56,9 @@ distribute with `./cache` directory.
 
 
 ## Credits
-* @Bruceleeto for the initial porting attempt, helping me get started with a makefile, as well as a few pointers I probably should have figured out by reading the documentation
-* The Simulant.dev and OpenRSC Discord Servers
+* @Bruceleeto for the initial porting attempt, helping me get started with a makefile, as well as a few pointers I probably should have figured out by reading the documentation.
+* Frogdoubler for answering my questions with an insane level of detail.
+* The Simulant.dev and OpenRSC Discord Servers.
 
 ## options
 
