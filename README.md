@@ -1,4 +1,4 @@
-# RuneCast -- An RSC-C Port to the SEGA Dreamcast
+# RuneCast -- An RSC-C Port to the SEGA Dreamcast, SGI IRIX Workstations, and other Legacy Hardware!
 
 portable, enhanced runescape classic client ported to C99. supports 204 and 177
 protocols. original mudclient204 java source refactored by v0rtex/xetr0v and
@@ -11,7 +11,7 @@ Prominent new features include:
 * Keyboard and Mouse Support!
 * It doesn't run on stock hardware (yet)!
 
-### run requirements
+### Run Requirements
 
 * A Sega Dreamcast, or Dreamcast Emulator, such as Flycast, Devcast, or Deecy
 
@@ -52,7 +52,8 @@ Requires KallistiOS set up to build. When that is installed, cd to the RuneCast 
 * else...
 * 4b.```mkdcdisc -e mudclient.elf -d './cache' -o RuneScape.cdi -N``` 
 * ...you can do it yourself.
-* 5(optional).```flycast RuneScape.cdi``` For instant testing, if you have flycast set up to run as a command by symlinking to /usr/local/bin
+* 5(optional).```flycast RuneScape.cdi``` 
+* For instant testing, if you have flycast set up to run as a command by symlinking to /usr/local/bin. Other emulators may do this, I'm not sure.
 
 ## Build Instructions (linux):
 
