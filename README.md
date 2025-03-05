@@ -37,7 +37,7 @@ Requires KallistiOS set up to build. When that is installed, cd to the RuneCast 
 * 1.```source /opt/toolchains/dc/kos/environ.sh``` To build with the Dreamcast Toolchain
 * 2.```make -f Makefile.dreamcast [SDL-VERSION-OF-CHOICE] clean``` Clean your build environment
 
-* This part of the process has you choose between building with SDL1.2 (Built into KallistiOS), or SDL2.(available as a KOS-Addon, and included in this repo, but is under continuous development. Its implementation is currently experimental in this project.)
+* This part of the process has you choose between building with SDL1.2 (Built into KallistiOS), or SDL2.(available as a KOS-Addon. I've included it in this package, [but you should check the original repo for updates.](https://github.com/GPF/SDL2) but is under continuous development. Its implementation is currently experimental in this project.)
 
 * 3a.```make -f Makefile.dreamcast SDLKOS=1``` if building with SDL1.2 (Recommended for now)
 * 3b.```make -f Makefile.dreamcast SDL2=1``` if building with SDL2 (Unfinished)
@@ -217,7 +217,7 @@ bank_maintain_slot = 1
 * [isaac](https://burtleburtle.net/bob/rand/isaacafa.html) for authentic packet
 decoding
 * [KallistiOS](https://github.com/KallistiOS/KallistiOS) The incredible Sega Dreamcast SDK that makes this possible
-* [SDL2 for Sega Dreamcast](https://github.com/GPF/SDL2) for I/O
+* [SDL2 for Sega Dreamcast](https://github.com/GPF/SDL2) for Dreamcast I/O
 * [micro-bunzip](https://landley.net/code/) for decompressing cache archives
 * [tiny-bignum-c](https://github.com/kokke/tiny-bignum-c) for RSA encryption on
 login/registration
