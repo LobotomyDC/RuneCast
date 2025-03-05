@@ -99,3 +99,18 @@ dist: $(TARGET)
 	$(KOS_STRIP) $(TARGET)
 
 $(info Filtered source files: $(SRC))
+
+# CDI Image Generation
+CDI_OUTPUT = RuneScape.cdi
+CDI_CACHE_DIR = ./cache
+
+ifdef CDI
+    $(info CDI=1 detected, enabling CDI image generation)
+    POST_BUILD_CMD = mkdcdisc -e $(TARGET) -d $(CDI_CACHE_DIR) -o $(CDI_OUTPUT) -N
+else
+    POST_BUILD_CMD = @echo "CDI=1 not set, skipping CDI generation."
+endif
+
+# Build rules
+all: rm-elf $(TARGET)
+	$(POST_BUILD_CMD)  # Runs mkdcdisc only if CDI=1
