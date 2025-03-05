@@ -59,7 +59,7 @@ Isaac Eggsampler. compatible with [rscsundae](https://git.sr.ht/~stormy/rscsunda
 * This is for the DC SDL2 library itself. Refer to the instructions above to actually build the game with SDL2. As SDL1.2 comes with KallistiOS as a KOS-Port, there is no need to do this for that version. As SDL2 is available as a KOS-Addon external to KallistiOS. I've included it, and build instructions, in this package, [but you should check the original repo for updates.](https://github.com/GPF/SDL2) Dreamcast SDL2 is under continuous development, and implementation is currently experimental in this project. I do not update the SDL2 that I've included in this project, and implore you to track the progress of its development, and periodically update/rebuild it as it continues.
 
 * 1. ```source /opt/toolchains/dc/kos/environ.sh``` To build with the Dreamcast Toolchain
-* 2. ```cd [PATH/TO/RUNECAST FOLDER]/SDL2-dreamcastSDL2/build-scripts``` change directory to the 'build-scripts' folder
+* 2. ```cd [PATH-TO-RUNECAST-DIRECTORY]/SDL2-dreamcastSDL2/build-scripts``` change directory to the 'build-scripts' folder
 * 3. ```./dreamcast.sh``` 'Run the Dreamcast SDL2 build script.' This will automatically install the library to the addons folder in your DC toolchain.
 
 ### "Gee, Billy! How come your mom lets you have TWO SDLs?"
