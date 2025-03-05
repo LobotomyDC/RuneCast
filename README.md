@@ -34,8 +34,8 @@ Prominent new features include:
 
 Requires KallistiOS set up to build. When that is installed, cd to the project folder and type the following in Terminal:
  
-* ```source /opt/toolchains/dc/kos/environ.sh```
-* ```make -f Makefile.dreamcast clean```
+* ```source /opt/toolchains/dc/kos/environ.sh``` To build with the Dreamcast Toolchain
+* ```make -f Makefile.dreamcast [SDL-VERSION-OF-CHOICE] clean``` Clean your build environment
 * ```make -f Makefile.dreamcast SDLKOS=1``` if building with SDL1.2
 * ```make -f Makefile.dreamcast SDL2=1``` if building with SDL2
 * ```make -f Makefile.dreamcast [SDL-VERSION-OF-CHOICE] CDI=1``` if you have mkdcdisc installed, symlinked to /usr/local/bin, and want a CDI right away, else...:
