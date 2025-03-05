@@ -214,7 +214,7 @@ bank_maintain_slot = 1
 * [ini](https://github.com/rxi/ini) for parsing *options.ini*
 * [isaac](https://burtleburtle.net/bob/rand/isaacafa.html) for authentic packet
 decoding
-* [libsdl2](https://github.com/GPF/SDL2) for input/output on Dreamcast
+* [SDL2 for Sega Dreamcast](https://github.com/GPF/SDL2) for I/O
 * [micro-bunzip](https://landley.net/code/) for decompressing cache archives
 * [tiny-bignum-c](https://github.com/kokke/tiny-bignum-c) for RSA encryption on
 login/registration
