@@ -5,7 +5,7 @@ protocols. original mudclient204 java source refactored by v0rtex/xetr0v and
 Isaac Eggsampler. compatible with [rscsundae](https://git.sr.ht/~stormy/rscsundae),
 [openrsc](https://rsc.vet/) and 2003scape.
 
-Prominent new features include:
+### Prominent new features include:
 * Native port for Sega Dreamcast!
 * Modular build options! (WIP)
 * Keyboard and Mouse Support!
