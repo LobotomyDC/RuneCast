@@ -30,9 +30,9 @@ Isaac Eggsampler. compatible with [rscsundae](https://git.sr.ht/~stormy/rscsunda
 * A/B - mouse button 1 and 2
 * X/Y - F1 and F2 for now. Will come up with better controls as I go, and try to support Dual Analog and Extended Controller Buttons.
 
-## Build Instructions (Dreamcast):
+## Build Instructions (Dreamcast/SDL1.2):
 
-Requires KallistiOS set up to build. When that is installed, cd to the RuneCast folder in your Terminal and type the following:
+[Requires KallistiOS set up to build](https://dreamcast.wiki/Getting_Started_with_Dreamcast_development). When that is installed, cd to the RuneCast folder in your Terminal and type the following:
  
 * 1.```source /opt/toolchains/dc/kos/environ.sh``` To build with the Dreamcast Toolchain
 * 2.```make -f Makefile.dreamcast [SDL-VERSION-OF-CHOICE] clean``` Clean your build environment
@@ -52,6 +52,14 @@ Requires KallistiOS set up to build. When that is installed, cd to the RuneCast 
 * ...you can do it yourself.
 * 5(optional).```flycast RuneScape.cdi``` 
 * For instant testing, if you have flycast set up to run as a command by symlinking to /usr/local/bin. Other emulators may do this, I'm not sure.
+
+## (Optional) Build Instructions (Dreamcast-SDL2):
+
+* This is for the DC SDL2 library itself. Refer to the instructions above to actually build the game with SDL2. As SDL1.2 comes with KallistiOS as a KOS-Port, there is no need to do this for that version.
+
+* 1. ```source /opt/toolchains/dc/kos/environ.sh``` To build with the Dreamcast Toolchain
+* 2. ```cd [PATH/TO/RUNECAST FOLDER/SDL2-dreamcastSDL2/build-scripts]```
+* 3. ```./dreamcast.sh```
 
 ## Build Instructions (linux):
 
