@@ -10,6 +10,7 @@ Isaac Eggsampler. compatible with [rscsundae](https://git.sr.ht/~stormy/rscsunda
 * Modular build options! (WIP)
 * Keyboard and Mouse Support!
 * It doesn't run on stock hardware (yet)!
+* [Discord Server](https://discord.gg/S82mFwhhEy)
 
 ### Run Requirements
 
