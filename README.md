@@ -26,11 +26,9 @@ Isaac Eggsampler. compatible with [rscsundae](https://git.sr.ht/~stormy/rscsunda
 * Sega Dreamcast Controller:
 * D-Pad/R Analog (if available) to control camera
 * L analog for mouse input
-* hold L whilst tapping touch screen for right click
-* Start -
-* select to toggle top screen's power
+* Start - ???
 * A/B - mouse button 1 and 2
-* X/Y - F1 and F2 for now
+* X/Y - F1 and F2 for now. Will come up with better controls as I go, and try to support Dual Analog and Extended Controller Buttons.
 
 ## Build Instructions (Dreamcast):
 
