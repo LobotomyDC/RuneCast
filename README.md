@@ -46,11 +46,11 @@ Isaac Eggsampler. compatible with [rscsundae](https://git.sr.ht/~stormy/rscsunda
 * If you want to build with GLdc (Currently unimplemented, don't bother trying just yet):
 * 3c. ```make -f Makefile.dreamcast [SDL-VERSION-OF-CHOICE] GLDC=1```
 
-* If you have mkdcdisc installed, symlinked to /usr/local/bin, and want a CDI right away,
-* 4a.```make -f Makefile.dreamcast [SDL-VERSION-OF-CHOICE] CDI=1```
-* else...
-* 4b.```mkdcdisc -e mudclient.elf -d './cache' -o RuneScape.cdi -N``` 
-* ...you can do it yourself.
+* AlternativelyIf you have mkdcdisc installed, symlinked to /usr/local/bin, and want a CDI right away,
+* 3d.```make -f Makefile.dreamcast [SDL-VERSION-OF-CHOICE] CDI=1```
+* else, if you built without CDI=1...
+* 4.```mkdcdisc -e mudclient.elf -d './cache' -o RuneScape.cdi -N``` 
+* ...you can do it yourself with that command.
 * 5(optional).```flycast RuneScape.cdi``` 
 * For instant testing, if you have flycast set up to run as a command by symlinking to /usr/local/bin. Other emulators may do this, I'm not sure.
 
