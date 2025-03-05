@@ -6,13 +6,14 @@ Isaac Eggsampler. compatible with [rscsundae](https://git.sr.ht/~stormy/rscsunda
 [openrsc](https://rsc.vet/) and 2003scape.
 
 Prominent new features include:
-* native port for Sega Dreamcast!
+* Native port for Sega Dreamcast!
+* Modular build options! (WIP)
 * Keyboard and Mouse Support!
 * It doesn't run on stock hardware (yet)!
 
 ### run requirements
 
-* A Sega Dreamcast
+* A Sega Dreamcast, or Dreamcast Emulator, such as Flycast, Devcast, or Deecy
 
 * [A Computer with the KallistiOS build environment installed](https://dreamcast.wiki/Getting_Started_with_Dreamcast_development)
 
@@ -22,6 +23,7 @@ Prominent new features include:
 
 * OR (soon)
 
+* Sega Dreamcast Controller:
 * D-Pad/R Analog (if available) to control camera
 * L analog for mouse input
 * hold L whilst tapping touch screen for right click
@@ -71,6 +73,7 @@ distribute with `./cache` directory.
 * @Bruceleeto for the initial porting attempt, helping me get started with a makefile, as well as a few pointers I probably should have figured out by reading the documentation.
 * Frogdoubler for answering my questions with an insane level of detail.
 * The Simulant.dev and OpenRSC Discord Servers.
+* @GPF/GPFTroy for the SDL2 Port to Dreamcast.
 
 ## options
 
@@ -214,6 +217,7 @@ bank_maintain_slot = 1
 * [ini](https://github.com/rxi/ini) for parsing *options.ini*
 * [isaac](https://burtleburtle.net/bob/rand/isaacafa.html) for authentic packet
 decoding
+* [KallistiOS](https://github.com/KallistiOS/KallistiOS) The incredible Sega Dreamcast SDK that makes this possible
 * [SDL2 for Sega Dreamcast](https://github.com/GPF/SDL2) for I/O
 * [micro-bunzip](https://landley.net/code/) for decompressing cache archives
 * [tiny-bignum-c](https://github.com/kokke/tiny-bignum-c) for RSA encryption on
