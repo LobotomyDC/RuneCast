@@ -30,17 +30,27 @@ Prominent new features include:
 * A/B - mouse button 1 and 2
 * X/Y - F1 and F2 for now
 
-## Build Instructions:
+## Build Instructions (Dreamcast):
 
-Requires KallistiOS set up to build. When that is installed, cd to the project folder and type the following in Terminal:
+Requires KallistiOS set up to build. When that is installed, cd to the RuneCast folder in your Terminal and type the following:
  
-* ```source /opt/toolchains/dc/kos/environ.sh``` To build with the Dreamcast Toolchain
-* ```make -f Makefile.dreamcast [SDL-VERSION-OF-CHOICE] clean``` Clean your build environment
-* ```make -f Makefile.dreamcast SDLKOS=1``` if building with SDL1.2
-* ```make -f Makefile.dreamcast SDL2=1``` if building with SDL2
-* ```make -f Makefile.dreamcast [SDL-VERSION-OF-CHOICE] CDI=1``` if you have mkdcdisc installed, symlinked to /usr/local/bin, and want a CDI right away, else...:
-* ```mkdcdisc -e mudclient.elf -d './cache' -o RuneScape.cdi -N``` ...to do it yourself.
-* ```flycast RuneScape.cdi``` For instant testing, if you have flycast set up to run as a command by symlinking to /usr/local/bin
+* 1.```source /opt/toolchains/dc/kos/environ.sh``` To build with the Dreamcast Toolchain
+* 2.```make -f Makefile.dreamcast [SDL-VERSION-OF-CHOICE] clean``` Clean your build environment
+
+This part of the process has you choose between building with SDL1.2 (Built into KallistiOS), or SDL2.(available as a KOS-Addon, and included in this repo, but is under continuous development. Its implementation is currently experimental in this project.)
+
+* 3a.```make -f Makefile.dreamcast SDLKOS=1``` if building with SDL1.2 (Recommended for now)
+* 3b.```make -f Makefile.dreamcast SDL2=1``` if building with SDL2 (Unfinished)
+
+If you want to build with GLdc (Currently unimplemented, don't bother trying just yet):
+* 3c ```make -f Makefile.dreamcast [SDL-VERSION-OF-CHOICE] GLDC=1```
+
+if you have mkdcdisc installed, symlinked to /usr/local/bin, and want a CDI right away,
+* 4a.```make -f Makefile.dreamcast [SDL-VERSION-OF-CHOICE] CDI=1```
+ else...
+* 4b.```mkdcdisc -e mudclient.elf -d './cache' -o RuneScape.cdi -N``` 
+...you can do it yourself.
+* 5(optional).```flycast RuneScape.cdi``` For instant testing, if you have flycast set up to run as a command by symlinking to /usr/local/bin
 
 ## Build Instructions (linux):
 
@@ -204,7 +214,7 @@ bank_maintain_slot = 1
 * [ini](https://github.com/rxi/ini) for parsing *options.ini*
 * [isaac](https://burtleburtle.net/bob/rand/isaacafa.html) for authentic packet
 decoding
-* [libsdl2](https://www.libsdl.org/index.php) for input/output on desktop
+* [libsdl2](https://github.com/GPF/SDL2) for input/output on Dreamcast
 * [micro-bunzip](https://landley.net/code/) for decompressing cache archives
 * [tiny-bignum-c](https://github.com/kokke/tiny-bignum-c) for RSA encryption on
 login/registration
