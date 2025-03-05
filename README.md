@@ -30,14 +30,15 @@ Isaac Eggsampler. compatible with [rscsundae](https://git.sr.ht/~stormy/rscsunda
 * A/B - mouse button 1 and 2
 * X/Y - F1 and F2 for now. Will come up with better controls as I go, and try to support Dual Analog and Extended Controller Buttons.
 
-## Build Instructions (Dreamcast/SDL1.2):
+## Build Instructions (Dreamcast):
 
 [Requires KallistiOS set up to build](https://dreamcast.wiki/Getting_Started_with_Dreamcast_development). When that is installed, cd to the RuneCast folder in your Terminal and type the following:
  
 * 1.```source /opt/toolchains/dc/kos/environ.sh``` To build with the Dreamcast Toolchain
 * 2.```make -f Makefile.dreamcast [SDL-VERSION-OF-CHOICE] clean``` Clean your build environment
 
-* This part of the process has you choose between building with SDL1.2 (Built into KallistiOS), or SDL2.(available as a KOS-Addon. I've included it in this package, [but you should check the original repo for updates.](https://github.com/GPF/SDL2) but is under continuous development. Its implementation is currently experimental in this project.)
+* This part of the process has you choose between building with SDL1.2 (Built into KallistiOS), or SDL2. 
+*SDL2 is available as a KOS-Addon. I've included it, and build instructions, in this package, [but you should check the original repo for updates.](https://github.com/GPF/SDL2) Dreamcast SDL2 is under continuous development, and implementation is currently experimental in this project.
 
 * 3a.```make -f Makefile.dreamcast SDLKOS=1``` if building with SDL1.2 (Recommended for now)
 * 3b.```make -f Makefile.dreamcast SDL2=1``` if building with SDL2 (Unfinished)
