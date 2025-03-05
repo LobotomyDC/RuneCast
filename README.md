@@ -62,9 +62,8 @@ Isaac Eggsampler. compatible with [rscsundae](https://git.sr.ht/~stormy/rscsunda
 * 2. ```cd [PATH/TO/RUNECAST FOLDER/SDL2-dreamcastSDL2/build-scripts]``` change directory to the 'build-scripts' folder
 * 3. ```./dreamcast.sh``` 'Run the Dreamcast SDL2 build script.' This will automatically install the library to the addons folder in your DC toolchain.
 
-### Why two SDLs?
-
-* I think it's useful to have the ability to pick and choose the libraries you want to use for the games you're building. I'm still learning how to port games, so having both options will not only allow me to benchmark performance, but also possibly help me find problems with the game itself. If there are other libraries I use that have "competition" (Like GLdc and KallistiGL), then I will also try to incorporate both of them as build options. Not many Dreamcast games have this option, and I think it's a good idea to get real-world performance to benchmark the libraries that we use, so that everything can be improved.
+### "Gee, Billy! How come your mom lets you have TWO SDLs?"
+ I think it's useful to have the ability to pick and choose the libraries you want to use for the games you're building. I'm still learning how to port games, so having both options will not only allow me to benchmark performance, but also possibly help me find problems with the game itself. If there are other libraries I use that have "competition" (Like GLdc and KallistiGL), then I will also try to incorporate both of them as build options. Not many Dreamcast games have this option, and I think it's a good idea to get real-world performance to benchmark the libraries that we use, so that everything can be improved.
 
 ## Build Instructions (linux):
 
