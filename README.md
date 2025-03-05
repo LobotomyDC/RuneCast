@@ -38,9 +38,9 @@ Requires KallistiOS set up to build. When that is installed, cd to the project f
 * ```make -f Makefile.dreamcast clean```
 * ```make -f Makefile.dreamcast SDLKOS=1``` if building with SDL1.2
 * ```make -f Makefile.dreamcast SDL2=1``` if building with SDL2
-* ```make -f Makefile.dreamcast [SDL-VERSION-OF-CHOICE] CDI=1``` if you have mkdcdisc installed and want a CDI right away,else:
-* ```mkdcdisc -e '/PATH-TO/mudclient.elf' -d '/PATH-TO/cache' -o RuneScape.cdi -N``` to do it yourself.
-* ```flycast RuneScape.cdi```
+* ```make -f Makefile.dreamcast [SDL-VERSION-OF-CHOICE] CDI=1``` if you have mkdcdisc installed, symlinked to /usr/local/bin, and want a CDI right away, else...:
+* ```mkdcdisc -e mudclient.elf -d './cache' -o RuneScape.cdi -N``` ...to do it yourself.
+* ```flycast RuneScape.cdi``` For instant testing, if you have flycast set up to run as a command by symlinking to /usr/local/bin
 
 ## Build Instructions (linux):
 
