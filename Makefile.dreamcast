@@ -1,3 +1,5 @@
+DREAMCAST=1
+
 TARGET = mudclient.elf
 
 # Updated source paths
@@ -27,8 +29,8 @@ ifdef SDL2
     LDFLAGS += $(SDL_LDFLAGS)
 else ifdef SDLKOS
     $(info Building with KOS default SDL1.2)
-    SRC := $(filter-out src/mudclient-sdl2.c src/mudclient-sdl.c src/mudclient-sdl12.c, $(SRC))
-    SRC += src/mudclient-sdl12.c  # Include SDL1.2 implementation **only once**
+    SRC := $(filter-out src/mudclient-sdl2.c src/mudclient-sdl.c, $(SRC))
+    #SRC += src/mudclient-sdl12.c  # Include SDL1.2 implementation **only once**
     SDL_CFLAGS = -I/opt/toolchains/dc/kos-ports/include/SDL
     SDL_LDFLAGS = -L/opt/toolchains/dc/kos-ports/lib -lSDL -lSDL_ttf
     CFLAGS += -DSDL12 $(SDL_CFLAGS)
@@ -105,12 +107,11 @@ CDI_OUTPUT = RuneScape.cdi
 CDI_CACHE_DIR = ./cache
 
 ifdef CDI
-    $(info CDI=1 detected, enabling CDI image generation)
+    $(info Dreamcast CDI Image Generation Toggled.)
     POST_BUILD_CMD = mkdcdisc -e $(TARGET) -d $(CDI_CACHE_DIR) -o $(CDI_OUTPUT) -N
 else
     POST_BUILD_CMD = @echo "CDI=1 not set, skipping CDI generation."
 endif
 
-# Build rules
 all: rm-elf $(TARGET)
-	$(POST_BUILD_CMD)  # Runs mkdcdisc only if CDI=1
+	$(POST_BUILD_CMD)
