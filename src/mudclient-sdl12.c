@@ -8,8 +8,8 @@
 #include <kos/dbglog.h>
 
 // Framebuffer dimensions
-#define FRAMEBUFFER_WIDTH 320
-#define FRAMEBUFFER_HEIGHT 240
+#define FRAMEBUFFER_WIDTH 640
+#define FRAMEBUFFER_HEIGHT 480
 
 // Keyboard Buffer
 #define DREAMCAST_KEYBOARD_BUFFER_SIZE 64
@@ -198,6 +198,10 @@ void get_sdl_keycodes(SDL_keysym *keysym, char *char_code, int *code) {
             break;
         case SDLK_ESCAPE: 
             *code = K_ESCAPE; 
+            break;
+        case SDLK_SPACE:
+            *code      = SDLK_SPACE;
+            *char_code = ' ';
             break;
 
         // Arrow keys
