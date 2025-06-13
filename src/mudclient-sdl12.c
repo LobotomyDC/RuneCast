@@ -186,8 +186,7 @@ void get_sdl_keycodes(SDL_keysym *keysym, char *char_code, int *code) {
         case SDLK_RETURN:    *code=K_ENTER;     *char_code='\r'; return;
         case SDLK_ESCAPE:    *code=K_ESCAPE;    /*no char*/      return;
         case SDLK_SPACE:     *code=SDLK_SPACE;  *char_code=' ';  return;
-
-        // Arrow and Function keys
+        
         case SDLK_LEFT: case SDLK_RIGHT: case SDLK_UP: case SDLK_DOWN:
         case SDLK_F1: case SDLK_F2: case SDLK_F3: case SDLK_F4: case SDLK_F5:
         case SDLK_F6: case SDLK_F7: case SDLK_F8: case SDLK_F9:
@@ -199,17 +198,14 @@ void get_sdl_keycodes(SDL_keysym *keysym, char *char_code, int *code) {
             break;
     }
 
-    // Letters and digits
         if ((keysym->sym >= SDLK_a && keysym->sym <= SDLK_z) ||
             (keysym->sym >= SDLK_0 && keysym->sym <= SDLK_9)) {
 
-        // Letters a–z
         if (keysym->sym >= SDLK_a) {
             *char_code = (keysym->mod & KMOD_SHIFT)
                 ? toupper(keysym->sym)
                 : tolower(keysym->sym);
 
-        // Digits 0–9, with shifted symbols
         } else {
             static const char shifted_map[10] = {
                 ')','!','@','#','$','%','^','&','*','('
@@ -224,7 +220,6 @@ void get_sdl_keycodes(SDL_keysym *keysym, char *char_code, int *code) {
         return;
     }
 
-    // 3) Punctuation
     switch (keysym->sym) {
       case SDLK_COMMA:        *char_code = (keysym->mod & KMOD_SHIFT) ? '<' : ',';  *code = SDLK_COMMA;        return;
       case SDLK_PERIOD:       *char_code = (keysym->mod & KMOD_SHIFT) ? '>' : '.';  *code = SDLK_PERIOD;       return;
@@ -241,7 +236,6 @@ void get_sdl_keycodes(SDL_keysym *keysym, char *char_code, int *code) {
           break;
     }
 
-    // 4) Numpad 0–9
     if (keysym->sym >= SDLK_KP0 && keysym->sym <= SDLK_KP9) {
         int idx = keysym->sym - SDLK_KP0;
         *char_code = (char)('0' + idx);
@@ -249,7 +243,6 @@ void get_sdl_keycodes(SDL_keysym *keysym, char *char_code, int *code) {
         return;
     }
 
-    // 5) Numpad operators
     switch (keysym->sym) {
       case SDLK_KP_DIVIDE:   *char_code = '/';  *code = SDLK_KP_DIVIDE;   return;
       case SDLK_KP_MULTIPLY: *char_code = '*';  *code = SDLK_KP_MULTIPLY; return;
@@ -259,8 +252,7 @@ void get_sdl_keycodes(SDL_keysym *keysym, char *char_code, int *code) {
       default:
           break;
     }
-
-    // 6) Finally, use SDL unicode for anything left (if your build supports it)
+    
     if (keysym->unicode > 0 && isprint((unsigned char)keysym->unicode)) {
         *char_code = (char)keysym->unicode;
         *code      = keysym->sym;
