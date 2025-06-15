@@ -330,6 +330,8 @@ typedef struct mudclient mudclient;
 #include "custom/toonscape.h"
 #endif
 
+void draw_cursor(SDL_Surface *screen, int x, int y);
+
 #ifdef WII
 /* these are doubled for the wii */
 #define KEY_WIDTH 23
