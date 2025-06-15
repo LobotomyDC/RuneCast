@@ -1,20 +1,25 @@
 #include "mudclient.h"
+#ifdef DREAMCAST
 #include <kos.h>
 #include <kos/net.h>
 #include <dc/maple.h>
 #include <dc/maple/keyboard.h>
 #include <dc/maple/mouse.h>
 #include <dc/maple/controller.h>
-//#include <dc/pvr.h>
 #include <dc/video.h>
 #include <dc/sound/stream.h>
-#include <SDL/SDL.h>
 #include <ctype.h>
 #include <kos/dbglog.h>
 
-
+#ifdef SDL2
+  #define SDL_MAIN_HANDLED
+  #include <SDL2/SDL.h>
+#else
+  #include <SDL/SDL.h>
+#endif
 
 KOS_INIT_FLAGS(INIT_DEFAULT | INIT_NET);
+#endif
 
 int mudclient_finger_1_x = 0;
 int mudclient_finger_1_y = 0;
@@ -690,10 +695,7 @@ void mudclient_mouse_pressed(mudclient *mud, int x, int y, int button) {
         mud->mouse_y /= 2;
     }
 
-    /*
-     * in SDL12 mouse wheel scrolling is treated as digital button press,
-     * while in SDL2 it is handled as a different type of event entirely.
-     */
+    // Mouse wheel logic (same as before)
     if (button == 4 || button == 5) {
         if (mud->options->mouse_wheel) {
             if (button == 4) {
@@ -702,12 +704,10 @@ void mudclient_mouse_pressed(mudclient *mud, int x, int y, int button) {
                 mud->mouse_scroll_delta++;
             }
             return;
-//        } else {
-            /* treat it as a right click when scrolling is disabled */
-//            button = 3;
         }
     }
 
+    // Middle click camera (same as before)
     if (mud->options->middle_click_camera != 0 && button == 2) {
         mud->middle_button_down = 1;
         mud->origin_rotation = mud->camera_rotation;
@@ -719,7 +719,18 @@ void mudclient_mouse_pressed(mudclient *mud, int x, int y, int button) {
         return;
     }
 
+#if defined(DREAMCAST) && defined(SDL12)
+    // Dreamcast GPFTroy SDL: 0=left, 1=right, 2=middle
+    if (button == 1) {
+        mud->mouse_button_down = 2; // right
+    } else if (button == 0) {
+        mud->mouse_button_down = 1; // left
+    }
+#else
+    // Original PC/SDL logic: 1=left, 2=middle, 3=right
     mud->mouse_button_down = button == 3 ? 2 : 1;
+#endif
+
     mud->last_mouse_button_down = mud->mouse_button_down;
     mud->mouse_action_timeout = 0;
 
@@ -1556,6 +1567,19 @@ void mudclient_load_textures(mudclient *mud) {
 }
 
 void mudclient_load_models(mudclient *mud) {
+#ifdef SKIP_MODELS   /* —— Dreamcast RAM-test —— */
+    printf("[SKIP_MODELS] skipping mudclient_load_models()\n");
+
+    /* clear the whole compile-time array */
+    memset(mud->game_models, 0, sizeof(mud->game_models));
+
+    if (mud->options->ground_item_models) {
+        memset(mud->item_models, 0, sizeof(mud->item_models));
+    }
+
+    return;
+#endif
+
     if (!mud->options->lowmem) {
         for (int i = 0; i < ANIMATED_MODELS_LENGTH; i++) {
             game_data_get_model_index(mud_strdup(animated_models[i]));
@@ -4749,6 +4773,12 @@ void mudclient_draw(mudclient *mud) {
 #endif
 #endif
     }
+#ifdef SDL12
+#ifndef RENDER_GL
+    draw_cursor(mud->screen, mud->mouse_x, mud->mouse_y);
+    SDL_Flip(mud->screen);
+#endif
+#endif
 }
 
 #ifdef SDL12
@@ -5355,7 +5385,7 @@ int main(int argc, char **argv) {
     /* END INAUTHENTIC COMMAND LINE ARGUMENTS */
 #endif
 
-#ifdef DREAMCAST
+/*#ifdef DREAMCAST
     // Initialize the networking stack
     if (net_init() < 0) {
         dbglog(DBG_ERROR, "Networking initialization failed.\n");
@@ -5364,7 +5394,7 @@ int main(int argc, char **argv) {
     } else {
         dbglog(DBG_INFO, "Networking initialized successfully.\n");
     }
-#endif
+#endif*/
 
     mudclient_start_application(mud, "Runescape by Andrew Gower");
     mudclient_start_application_common(mud);
