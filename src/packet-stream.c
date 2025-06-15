@@ -11,6 +11,12 @@
 static int winsock_init = 0;
 #endif
 
+#ifdef DREAMCAST
+  #include <fcntl.h>
+  #include <unistd.h>
+  #include <kos/net.h>
+#endif
+
 #ifdef WII
 #define socket(x, y, z) net_socket(x, y, z)
 #define gethostbyname net_gethostbyname
@@ -110,7 +116,7 @@ void packet_stream_new(PacketStream *packet_stream, mudclient *mud) {
 
     int ret = 0;
 
-#ifdef WII
+/*#ifdef WII
     char local_ip[16] = {0};
     char gateway[16] = {0};
     char netmask[16] = {0};
@@ -121,7 +127,7 @@ void packet_stream_new(PacketStream *packet_stream, mudclient *mud) {
         mud_error("if_config(): %d\n", ret);
         exit(1);
     }
-#endif
+#endif*/
 
     struct sockaddr_in server_addr = {0};
     server_addr.sin_family = AF_INET;
@@ -172,6 +178,9 @@ void packet_stream_new(PacketStream *packet_stream, mudclient *mud) {
 #endif
 
     packet_stream->socket = socket(AF_INET, SOCK_STREAM, 0);
+    int buf = 64 * 1024;  /* 64 KB */
+    setsockopt(packet_stream->socket, SOL_SOCKET, SO_RCVBUF, &buf, sizeof(buf));
+    setsockopt(packet_stream->socket, SOL_SOCKET, SO_SNDBUF, &buf, sizeof(buf));
 
     if (packet_stream->socket < 0) {
         mud_error("socket error: %s (%d)\n", strerror(errno), errno);
@@ -181,9 +190,24 @@ void packet_stream_new(PacketStream *packet_stream, mudclient *mud) {
 
     int set = 1;
 
+#ifdef DREAMCAST
+    int flags = fcntl(packet_stream->socket, F_GETFL, 0);
+    if (flags < 0) {
+        mud_error("fcntl F_GETFL failed: %s\n", strerror(errno));
+        packet_stream_close(packet_stream);
+        return;
+    }
+    if (fcntl(packet_stream->socket, F_SETFL, flags | O_NONBLOCK) < 0) {
+        mud_error("fcntl F_SETFL failed: %s\n", strerror(errno));
+        packet_stream_close(packet_stream);
+        return;
+    }
+#endif
+
 #ifdef TCP_NODELAY
-    setsockopt(packet_stream->socket, IPPROTO_TCP, TCP_NODELAY, &set,
-               sizeof(set));
+    int one = 1;
+    setsockopt(packet_stream->socket, IPPROTO_TCP, TCP_NODELAY, &one, sizeof(one));
+
 #endif
 
 #ifdef EMSCRIPTEN
@@ -282,28 +306,25 @@ void packet_stream_new(PacketStream *packet_stream, mudclient *mud) {
     packet_stream->packet_max_length = 5000;
 }
 
-int packet_stream_available_bytes(PacketStream *packet_stream, int length) {
-    if (packet_stream->available_length >= length) {
+int packet_stream_available_bytes(PacketStream *ps, int length) {
+    if (ps->available_length >= length) {
         return 1;
     }
-
-    int bytes =
-        recv(packet_stream->socket,
-             packet_stream->available_buffer + packet_stream->available_offset +
-                 packet_stream->available_length,
-             length - packet_stream->available_length, 0);
-
-    if (bytes < 0) {
-        bytes = 0;
+    int bytes = recv(ps->socket,
+                     ps->available_buffer + ps->available_offset +
+                         ps->available_length,
+                     length - ps->available_length,
+                     0);
+    if (bytes > 0) {
+        ps->available_length += bytes;
+    } else if (bytes == 0) {
+        ps->closed = 1;
+    } else {
+        if (errno != EAGAIN && errno != EWOULDBLOCK) {
+            ps->closed = 1;
+        }
     }
-
-    packet_stream->available_length += bytes;
-
-    if (packet_stream->available_length < length) {
-        return 0;
-    }
-
-    return 1;
+    return ps->available_length >= length;
 }
 
 int packet_stream_read_bytes(PacketStream *packet_stream, int length,
