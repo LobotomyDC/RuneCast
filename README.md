@@ -38,7 +38,7 @@ Isaac Eggsampler. compatible with [rscsundae](https://git.sr.ht/~stormy/rscsunda
 * 1.`source /opt/toolchains/dc/kos/environ.sh` To build with the Dreamcast Toolchain
 * 2.`make -f Makefile.dreamcast [SDL-VERSION-OF-CHOICE] clean` Clean your build environment
 
-* This part of the process has you choose between building with SDL1.2 (Built into KallistiOS), or SDL2. Instructions on building SDL2 are below these instructions
+* This part of the process has you choose between building with SDL1.2 (Please use @GPF 's SDL1.2, not the one built into KallistiOS), or SDL2. Instructions on building SDL2 are below these instructions
 
 * 3a.`make -f Makefile.dreamcast SDL12=1` if building with SDL1.2 (Recommended for now)
 * 3b (Optional).`make -f Makefile.dreamcast SDL2=1` if building with SDL2 (Unfinished)
@@ -84,7 +84,7 @@ distribute with `./cache` directory.
 * @Bruceleeto for the initial porting attempt, helping me get started with a makefile, as well as a few pointers I probably should have figured out by reading the documentation.
 * Frogdoubler for answering my questions with an insane level of detail.
 * The Simulant.dev and OpenRSC Discord Servers.
-* @GPF/GPFTroy for the SDL2 Port to Dreamcast.
+* @GPF/GPFTroy for his SDL1.2, SDL2, and SDL3 Port to Dreamcast, and advice.
 
 ## options
 
