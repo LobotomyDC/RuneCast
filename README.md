@@ -35,23 +35,23 @@ Isaac Eggsampler. compatible with [rscsundae](https://git.sr.ht/~stormy/rscsunda
 
 [Requires KallistiOS set up to build](https://dreamcast.wiki/Getting_Started_with_Dreamcast_development). When that is installed, cd to the RuneCast folder in your Terminal and type the following:
  
-* 1.```source /opt/toolchains/dc/kos/environ.sh``` To build with the Dreamcast Toolchain
-* 2.```make -f Makefile.dreamcast [SDL-VERSION-OF-CHOICE] clean``` Clean your build environment
+* 1.`source /opt/toolchains/dc/kos/environ.sh` To build with the Dreamcast Toolchain
+* 2.`make -f Makefile.dreamcast [SDL-VERSION-OF-CHOICE] clean` Clean your build environment
 
 * This part of the process has you choose between building with SDL1.2 (Built into KallistiOS), or SDL2. Instructions on building SDL2 are below these instructions
 
-* 3a.```make -f Makefile.dreamcast SDLKOS=1``` if building with SDL1.2 (Recommended for now)
-* 3b (Optional).```make -f Makefile.dreamcast SDL2=1``` if building with SDL2 (Unfinished)
+* 3a.`make -f Makefile.dreamcast SDL12=1` if building with SDL1.2 (Recommended for now)
+* 3b (Optional).`make -f Makefile.dreamcast SDL2=1` if building with SDL2 (Unfinished)
 
 * If you want to build with GLdc (Currently unimplemented, don't bother trying just yet):
-* 3c (Optional). ```make -f Makefile.dreamcast [SDL-VERSION-OF-CHOICE] GLDC=1```
+* 3c (Optional). `make -f Makefile.dreamcast [SDL-VERSION-OF-CHOICE] GLDC=1`
 
 * Also, If you have mkdcdisc installed, symlinked to /usr/local/bin, and want to build the game and make a CDI right away, with a single command, you can do this...
-* 3d.```make -f Makefile.dreamcast [SDL-VERSION-OF-CHOICE] CDI=1```
+* 3d.`make -f Makefile.dreamcast [BUILD_OPTIONS] CDI=1`
 * ...else, if you built without CDI=1, and only have an .elf...
-* 4.```mkdcdisc -e mudclient.elf -d './cache' -o RuneScape.cdi -N``` 
+* 4.`mkdcdisc -e mudclient.elf -d './cache' -o RuneScape.cdi -N` 
 * ...you can build the CDI yourself with that command.
-* 5(optional).```flycast RuneScape.cdi``` 
+* 5(optional).`flycast RuneScape.cdi` 
 * For instant testing, if you have flycast set up to run as a command by symlinking to /usr/local/bin. Other emulators may do this, I'm not sure.
 
 ## (Optional) Build Instructions (Dreamcast-SDL2):
