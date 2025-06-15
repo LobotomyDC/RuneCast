@@ -28,8 +28,8 @@ Isaac Eggsampler. compatible with [rscsundae](https://git.sr.ht/~stormy/rscsunda
 * D-Pad/R Analog (if available) to control camera
 * L analog for mouse input
 * Start - ??? (Probably on-screen keyboard)
-* A/B - mouse button 1 and 2
-* X/Y - F1 and F2 for now. Will come up with better controls as I go, and try to support Dual Analog and Extended Controller Buttons.
+* A/B - Mouse button 1 and 2
+* X/Y - Middle Mouse-Click
 
 ## Build Instructions (Dreamcast):
 
