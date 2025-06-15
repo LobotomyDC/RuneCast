@@ -78,7 +78,7 @@ void options_set_defaults(Options *options) {
     options->touch_menu_delay = 350;
 
     /* display */
-    options->lowmem = 0;
+    options->lowmem = 1;
     options->interlace = 0;
     options->flicker = 1;
     options->fog_of_war = 0;
@@ -94,7 +94,7 @@ void options_set_defaults(Options *options) {
     options->certificate_items = 1;
     options->wilderness_warning = 1;
     options->status_bars = 1;
-    options->ground_item_models = 1;
+    options->ground_item_models = 0;
     options->ground_item_text = 1;
     options->distant_animation = 1;
     options->tga_sprites = 0;
@@ -151,7 +151,7 @@ void options_set_vanilla(Options *options) {
     options->touch_menu_delay = 350;
 
     /* display */
-    options->lowmem = 0;
+    options->lowmem = 1;
     options->interlace = 0;
     options->flicker = 1;
     options->fog_of_war = 0;
