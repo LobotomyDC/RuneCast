@@ -1,5 +1,12 @@
 #include "utility.h"
 
+#ifdef DREAMCAST
+#include <kos/dbglog.h>
+//#define STBI_NO_STDIO
+#define STBI_ONLY_PNG
+#include "stb_image.h"
+#endif
+
 #if defined(__unix__) || defined(__unix) ||                                    \
     (defined(__APPLE__) && defined(__MACH__))
 #include <sys/stat.h>
@@ -916,11 +923,34 @@ void gl_create_texture(GLuint *texture_id) {
 void gl_load_texture(GLuint *texture_id, char *file) {
     gl_create_texture(texture_id);
 
+#ifdef DREAMCAST
+    dbglog(DBG_WARNING, "gl_load_texture: loading PNG from file: %s\n", file);
+
+    // Build full path: use /cd/ prefix for Dreamcast ISO loading
+    char full_path[256];
+    snprintf(full_path, sizeof(full_path), "/cd/%s", file);
+
+    // Decode PNG directly from disk using stb_image
+    int width, height, channels;
+    unsigned char *pixels = stbi_load(full_path, &width, &height, &channels, STBI_rgb_alpha);
+
+    if (!pixels) {
+        dbglog(DBG_ERROR, "gl_load_texture: stb_image failed to decode %s\n", full_path);
+        return;
+    }
+
+    // Upload to GLdc
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height,
+                 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+
+    stbi_image_free(pixels);
+
+#else
+    // PC or non-DC path — use SDL_image
     SDL_Surface *texture_image = IMG_Load(file);
 
     if (!texture_image) {
         mud_error("unable to load %s texture\n%s\n", file, IMG_GetError());
-
         exit(1);
     }
 
@@ -928,7 +958,9 @@ void gl_load_texture(GLuint *texture_id, char *file) {
                  0, GL_RGBA, GL_UNSIGNED_BYTE, texture_image->pixels);
 
     SDL_FreeSurface(texture_image);
+#endif
 }
+
 
 // TODO gl_
 void rotate_point(int centre_x, int centre_y, float angle, int *point) {
@@ -1022,3 +1054,5 @@ int _3ds_gl_rgba5551_to_rgb32(uint16_t colour16) {
     return (r8 << 16) | (g8 << 8) | b8;
 }
 #endif
+
+#define STB_IMAGE_IMPLEMENTATION
