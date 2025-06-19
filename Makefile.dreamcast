@@ -8,12 +8,23 @@ SRC := $(filter-out src/mudclient-wii.c src/mudclient-3ds.c src/scene-3ds-gl.c s
 
 # Include rsa-tiny.c explicitly
 SRC += src/lib/rsa/rsa-tiny.c
+KOS_PORTS := /opt/toolchains/dc/kos-ports
+CFLAGS += -I$(KOS_BASE)/addons/include/stb
+
+ifdef GLDC
+SRC += src/gl/vertex-buffer.c
+SRC += src/gl/textures/model_textures.c
+SRC += src/gl/textures/entities.c
+SRC += src/gl/textures/fonts.c
+SRC += src/gl/textures/media.c
+endif
 
 # Compiler Flags (Common)
 CFLAGS += -fwrapv -std=gnu99 -DSDL_MAIN_HANDLED -DREVISION_177 -DDREAMCAST # -DTCP_NODELAY # -DSKIP_MODELS
+CFLAGS += -I$(KOS_BASE)/include/GL
 
 # Linker Flags (Common)
-LDFLAGS += -L$(KOS_BASE)/addons/lib/$(KOS_ARCH) -lppp -lm
+LDFLAGS += -L$(KOS_BASE)/addons/lib/$(KOS_ARCH) -lppp -lstb_image -lz -lm -lGL
 
 # SDL Configuration
 ifdef SDL2
@@ -25,7 +36,6 @@ ifdef SDL2
     SDL_LDFLAGS = -L$(SDL_DIR)/lib/dreamcast -lSDL2
     CFLAGS += -DSDL2 $(SDL_CFLAGS)
     LDFLAGS += $(SDL_LDFLAGS)
-    LDFLAGS += -L/opt/toolchains/dc/kos-ports/GLdc/dcbuild -lGL
 else ifdef SDL12
     $(info Building with GPFTroy SDL1.2-DreamHAL--GLDC)
     SRC := $(filter-out src/mudclient-sdl2.c src/mudclient-sdl.c, $(SRC))
@@ -35,18 +45,24 @@ else ifdef SDL12
     SDL_LDFLAGS = -L$(SDL_DIR)/lib/$(KOS_ARCH) -lSDL
     CFLAGS += -DSDL12 $(SDL_CFLAGS)
     LDFLAGS += $(SDL_LDFLAGS)
-    LDFLAGS += -L/opt/toolchains/dc/kos-ports/GLdc/dcbuild -lGL
 else
     $(error Must define either SDL2=1 or SDL12=1)
 endif
 
-# GLdc Configuration (Enabled with `make GLDC=1`)
+# GLdc Configuration (OpenGL Rendering)
 ifdef GLDC
     $(info Building for GLdc Rendering)
     CFLAGS += -DRENDER_GL
     CFLAGS += -DGLDC_GL
 else
     $(info Building in software rendering mode)
+    CFLAGS += -DRENDER_SW
+endif
+
+# GLdc SDL1.2 Video Backend Mode (OpenGL Blitting)
+ifdef GLDC_SDL
+    $(info Building with SDL1.2 composited with GLdc)
+    CFLAGS += -DGLDC_VIDEO
     CFLAGS += -DRENDER_SW
 endif
 
