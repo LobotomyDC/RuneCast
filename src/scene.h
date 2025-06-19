@@ -10,15 +10,22 @@
 #endif
 
 #ifdef RENDER_GL
-#ifdef GLAD
-#include <glad/glad.h>
-#else
-#include <GL/glew.h>
-#include <GL/glu.h>
-#endif
-#if !defined(SDL12) && !defined(__SWITCH__)
-#include <SDL_opengl.h>
-#endif
+
+  #if defined(DREAMCAST)
+    #include <GL/gl.h>
+
+  #elif defined(GLAD)
+    #include <glad/glad.h>
+
+  #else
+    #include <GL/glew.h>
+    #include <GL/glu.h>
+  #endif
+
+  #if !defined(SDL12) && !defined(__SWITCH__) && !defined(DREAMCAST)
+    #include <SDL_opengl.h>
+  #endif
+
 
 #include "gl/shader.h"
 #endif
