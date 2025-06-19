@@ -33,16 +33,21 @@
 #endif
 
 #ifdef RENDER_GL
-#ifdef __SWITCH__
+
+#ifdef DREAMCAST
+#include <GL/gl.h>
+
+#elif defined(__SWITCH__)
 #include <SDL2/SDL_image.h>
+#elif defined(GLAD)
+#include <SDL_image.h>
+#include <glad/glad.h>
+
 #else
 #include <SDL_image.h>
-#endif
-#ifdef GLAD
-#include <glad/glad.h>
-#else
 #include <GL/glew.h>
 #include <GL/glu.h>
+
 #endif
 #endif
 #endif
