@@ -35,7 +35,9 @@
 #endif
 
 #ifdef RENDER_GL
-#ifdef GLAD
+#ifdef DREAMCAST
+#include <GL/gl.h>
+#elif defined(GLAD)
 #include <glad/glad.h>
 #else
 #include <GL/glew.h>
