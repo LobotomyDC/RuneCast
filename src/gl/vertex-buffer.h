@@ -2,16 +2,19 @@
 #define _H_VERTEX_BUFFER
 
 #include <stdlib.h>
-
 #include "../utility.h"
 
 #ifdef RENDER_GL
-#ifdef GLAD
+
+#ifdef DREAMCAST
+#include <GL/gl.h>
+#elif defined(GLAD)
 #include <glad/glad.h>
 #else
 #include <GL/glew.h>
 #include <GL/glu.h>
 #endif
+
 #elif defined(RENDER_3DS_GL)
 #include <citro3d.h>
 #include <tex3ds.h>
@@ -21,16 +24,22 @@ typedef struct gl_vertex_buffer {
     int vertex_length;
     int attribute_index;
 
-#ifdef RENDER_GL
+#if defined(RENDER_GL)
+  #ifdef GLDC_GL
+    void *vbo;
+    void *ebo;
+  #else
     GLuint vao;
     GLuint vbo;
     GLuint ebo;
+  #endif
 #elif defined(RENDER_3DS_GL)
     C3D_AttrInfo attr_info;
     C3D_BufInfo buf_info;
     void *vbo;
     void *ebo;
 #endif
+
 } gl_vertex_buffer;
 
 void vertex_buffer_gl_new(gl_vertex_buffer *vertex_buffer, int vertex_length,
@@ -40,4 +49,5 @@ void vertex_buffer_gl_add_attribute(gl_vertex_buffer *vertex_buffer,
                                     int *attribute_offset,
                                     int attribute_length);
 void vertex_buffer_gl_destroy(gl_vertex_buffer *vertex_buffer);
-#endif
+
+#endif  // _H_VERTEX_BUFFER
