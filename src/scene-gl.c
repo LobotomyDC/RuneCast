@@ -168,7 +168,7 @@ void scene_gl_render(Scene *scene) {
 
     scene->gl_scroll_texture_position--;
 
-    glActiveTexture(GL_TEXTURE0);
+//    glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, scene->gl_model_texture);
 
     vec3 ray_start = {VERTEX_TO_FLOAT(scene->camera_x),
@@ -348,7 +348,7 @@ void scene_gl_render_transparent_models(Scene *scene) {
 
     shader_use(&scene->game_model_shader);
 
-    glActiveTexture(GL_TEXTURE0);
+//    glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, scene->gl_model_texture);
 
     for (int i = 0; i < scene->model_count; i++) {
