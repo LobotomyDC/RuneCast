@@ -1,5 +1,7 @@
 #include "game-model.h"
 
+#define SKIP_MODELS   1
+
 #if defined(RENDER_GL) || defined(RENDER_3DS_GL)
 float gl_tri_face_us[] = {0.0f, 1.0f, 0.0f};
 float gl_tri_face_vs[] = {1.0f, 1.0f, 0.0f};
@@ -67,6 +69,11 @@ void game_model_new_alloc_flags(GameModel *game_model, int vertex_count,
 }
 
 void game_model_new_ob3(GameModel *game_model, int8_t *data, size_t len) {
+#ifdef SKIP_MODELS
+    /* ---- Dreamcast RAM-test: allocate nothing, mark as unloaded ---- */
+    memset(game_model, 0, sizeof(GameModel));
+    return;
+#endif
     size_t offset = 0;
 
     game_model_new(game_model);
@@ -1457,24 +1464,15 @@ void game_model_gl_buffer_arrays(GameModel *game_model, int *vertex_offset,
                                 game_model->vertex_y, game_model->vertex_z,
                                 face_normal_x, face_normal_y, face_normal_z, 0);
 
-    int16_t *vertex_normal_x =
-        calloc(game_model->vertex_count, sizeof(int16_t));
-
-    int16_t *vertex_normal_y =
-        calloc(game_model->vertex_count, sizeof(int16_t));
-
-    int16_t *vertex_normal_z =
-        calloc(game_model->vertex_count, sizeof(int16_t));
-
-    int32_t *vertex_normal_magnitude =
-        calloc(game_model->vertex_count, sizeof(int32_t));
+    int16_t *vertex_normal_x = calloc(game_model->vertex_count, sizeof(int16_t));
+    int16_t *vertex_normal_y = calloc(game_model->vertex_count, sizeof(int16_t));
+    int16_t *vertex_normal_z = calloc(game_model->vertex_count, sizeof(int16_t));
+    int32_t *vertex_normal_magnitude = calloc(game_model->vertex_count, sizeof(int32_t));
 
     game_model_get_vertex_normals(game_model, face_normal_x, face_normal_y,
                                   face_normal_z, vertex_normal_x,
                                   vertex_normal_y, vertex_normal_z,
                                   vertex_normal_magnitude);
-
-    vertex_buffer_gl_bind(game_model->gl_buffer);
 
     for (int i = 0; i < game_model->face_count; i++) {
         uint16_t *face_vertices = game_model->face_vertices[i];
@@ -1482,16 +1480,6 @@ void game_model_gl_buffer_arrays(GameModel *game_model, int *vertex_offset,
         int face_intensity = game_model->face_intensity[i];
         int fill_front = game_model->face_fill_front[i];
         int fill_back = game_model->face_fill_back[i];
-
-        /* -2 is the bridge in the barbarian agility course. fixes
-         * https://github.com/2003scape/rsc-c/issues/76 */
-        /*if (fill_front == -2) {
-            fill_front = COLOUR_TRANSPARENT;
-        }
-
-        if (fill_back == -2) {
-            fill_back = COLOUR_TRANSPARENT;
-        }*/
 
         gl_face_fill face_fill_front = {0};
         game_model_gl_decode_face_fill(fill_front, &face_fill_front);
@@ -1501,41 +1489,28 @@ void game_model_gl_buffer_arrays(GameModel *game_model, int *vertex_offset,
 
         float front_face_us[face_vertex_count];
         float front_face_vs[face_vertex_count];
-
-        game_model_gl_unwrap_uvs(game_model, face_vertices, face_vertex_count,
-                                 front_face_us, front_face_vs);
-
         float back_face_us[face_vertex_count];
         float back_face_vs[face_vertex_count];
 
+        game_model_gl_unwrap_uvs(game_model, face_vertices, face_vertex_count,
+                                 front_face_us, front_face_vs);
         game_model_gl_unwrap_uvs(game_model, face_vertices, face_vertex_count,
                                  back_face_us, back_face_vs);
 
         for (int j = 0; j < face_vertex_count; j++) {
             uint16_t vertex_index = face_vertices[j];
 
-            float vertex_x =
-                VERTEX_TO_FLOAT(game_model->vertex_x[vertex_index]);
-
-            float vertex_y =
-                VERTEX_TO_FLOAT(game_model->vertex_y[vertex_index]);
-
-            float vertex_z =
-                VERTEX_TO_FLOAT(game_model->vertex_z[vertex_index]);
+            float vertex_x = VERTEX_TO_FLOAT(game_model->vertex_x[vertex_index]);
+            float vertex_y = VERTEX_TO_FLOAT(game_model->vertex_y[vertex_index]);
+            float vertex_z = VERTEX_TO_FLOAT(game_model->vertex_z[vertex_index]);
 
             vec3 normal = {0};
             int normal_magnitude = 1;
 
             if (face_intensity == GAME_MODEL_USE_GOURAUD) {
-                normal[0] = VERTEX_TO_FLOAT(vertex_normal_x[vertex_index]) *
-                            VERTEX_SCALE;
-
-                normal[1] = VERTEX_TO_FLOAT(vertex_normal_y[vertex_index]) *
-                            VERTEX_SCALE;
-
-                normal[2] = VERTEX_TO_FLOAT(vertex_normal_z[vertex_index]) *
-                            VERTEX_SCALE;
-
+                normal[0] = VERTEX_TO_FLOAT(vertex_normal_x[vertex_index]) * VERTEX_SCALE;
+                normal[1] = VERTEX_TO_FLOAT(vertex_normal_y[vertex_index]) * VERTEX_SCALE;
+                normal[2] = VERTEX_TO_FLOAT(vertex_normal_z[vertex_index]) * VERTEX_SCALE;
                 normal_magnitude = vertex_normal_magnitude[vertex_index];
             } else {
                 normal[0] = VERTEX_TO_FLOAT(face_normal_x[i]) * VERTEX_SCALE;
@@ -1548,41 +1523,22 @@ void game_model_gl_buffer_arrays(GameModel *game_model, int *vertex_offset,
 
             float front_texture_x = front_face_us[j];
             float front_texture_y = 1.0f - front_face_vs[j];
-
             float back_texture_x = back_face_us[j];
             float back_texture_y = 1.0f - back_face_vs[j];
 
             gl_atlas_position front_atlas_position =
-                gl_transparent_model_atlas_position;
+                (fill_front == COLOUR_TRANSPARENT || face_fill_front.texture_index == -1)
+                    ? gl_white_model_atlas_position
+                    : gl_texture_atlas_positions[face_fill_front.texture_index];
 
-            if (fill_front != COLOUR_TRANSPARENT) {
-                if (face_fill_front.texture_index == -1) {
-                    front_atlas_position = gl_white_model_atlas_position;
-                } else {
-                    front_atlas_position =
-                        gl_texture_atlas_positions[face_fill_front
-                                                       .texture_index];
-                }
-            }
-
-            gl_offset_texture_uvs_atlas(front_atlas_position, &front_texture_x,
-                                        &front_texture_y);
+            gl_offset_texture_uvs_atlas(front_atlas_position, &front_texture_x, &front_texture_y);
 
             gl_atlas_position back_atlas_position =
-                gl_transparent_model_atlas_position;
+                (fill_back == COLOUR_TRANSPARENT || face_fill_back.texture_index == -1)
+                    ? gl_white_model_atlas_position
+                    : gl_texture_atlas_positions[face_fill_back.texture_index];
 
-            if (fill_back != COLOUR_TRANSPARENT) {
-                if (face_fill_back.texture_index == -1) {
-                    back_atlas_position = gl_white_model_atlas_position;
-                } else {
-                    back_atlas_position =
-                        gl_texture_atlas_positions[face_fill_back
-                                                       .texture_index];
-                }
-            }
-
-            gl_offset_texture_uvs_atlas(back_atlas_position, &back_texture_x,
-                                        &back_texture_y);
+            gl_offset_texture_uvs_atlas(back_atlas_position, &back_texture_x, &back_texture_y);
 
             if (face_fill_front.texture_index == 17) {
                 front_texture_x *= -1;
@@ -1595,55 +1551,26 @@ void game_model_gl_buffer_arrays(GameModel *game_model, int *vertex_offset,
             }
 
             gl_model_vertex vertex = {
-                /* vertex */
-                vertex_x, vertex_y, vertex_z, //
-
-                /* normal */
-                normal[0], normal[1], normal[2], (float)(normal_magnitude), //
-
-                /* lighting */
-                (float)(face_intensity), (float)(vertex_intensity), //
-
-                /* front colour */
+                vertex_x, vertex_y, vertex_z,
+                normal[0], normal[1], normal[2], (float)normal_magnitude,
+                (float)face_intensity, (float)vertex_intensity,
                 face_fill_front.r, face_fill_front.g, face_fill_front.b,
-
-                /* front texture */
                 front_texture_x, front_texture_y,
-
-                /* back colour */
                 face_fill_back.r, face_fill_back.g, face_fill_back.b,
+                back_texture_x, back_texture_y
+            };
 
-                /* back texture */
-                back_texture_x, back_texture_y};
-
-#ifdef RENDER_GL
-            glBufferSubData(GL_ARRAY_BUFFER,
-                            ((*vertex_offset) + j) * sizeof(vertex),
-                            sizeof(vertex), (void *)&vertex);
-#elif defined(RENDER_3DS_GL)
-            memcpy(game_model->gl_buffer->vbo +
-                       (((*vertex_offset) + j) * sizeof(vertex)),
-                   &vertex, sizeof(vertex));
-#endif
+            ((gl_model_vertex *)game_model->gl_buffer->vbo)[(*vertex_offset) + j] = vertex;
         }
 
         for (int j = 0; j < face_vertex_count - 2; j++) {
-#ifdef RENDER_GL
-            GLuint indices[] = {(*vertex_offset), (*vertex_offset) + j + 1,
-                                (*vertex_offset) + j + 2};
+            GLuint indices[] = {
+                (*vertex_offset),
+                (*vertex_offset) + j + 1,
+                (*vertex_offset) + j + 2
+            };
 
-            glBufferSubData(GL_ELEMENT_ARRAY_BUFFER,
-                            (*ebo_offset) * sizeof(GLuint), sizeof(indices),
-                            indices);
-#elif defined(RENDER_3DS_GL)
-            uint16_t indices[] = {(*vertex_offset), (*vertex_offset) + j + 1,
-                                  (*vertex_offset) + j + 2};
-
-            memcpy(game_model->gl_buffer->ebo +
-                       ((*ebo_offset) * sizeof(uint16_t)),
-                   indices, sizeof(indices));
-#endif
-
+            memcpy(&((GLuint *)game_model->gl_buffer->ebo)[*ebo_offset], indices, sizeof(indices));
             (*ebo_offset) += 3;
         }
 
@@ -1653,12 +1580,12 @@ void game_model_gl_buffer_arrays(GameModel *game_model, int *vertex_offset,
     free(face_normal_x);
     free(face_normal_y);
     free(face_normal_z);
-
     free(vertex_normal_x);
     free(vertex_normal_y);
     free(vertex_normal_z);
     free(vertex_normal_magnitude);
 }
+
 
 void game_model_get_vertex_ebo_lengths(GameModel **game_models, int length,
                                        int *vertex_count, int *ebo_length) {
