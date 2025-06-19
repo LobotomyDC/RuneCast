@@ -2566,12 +2566,16 @@ void world_gl_update_terrain_buffers(World *world) {
                                     (float)(vertex_intensity)};
 
 #ifdef RENDER_GL
-                // TODO use offsetof
-                glBufferSubData(
-                    GL_ARRAY_BUFFER,
-                    ((vertex_offset + k) * sizeof(gl_model_vertex)) +
-                        (sizeof(GLfloat) * 7),
-                    (sizeof(GLfloat) * 2), (void *)&lighting);
+#ifdef DREAMCAST
+gl_model_vertex *vbo = game_model->gl_buffer->vbo;
+vbo[vertex_offset + k].face_intensity = lighting[0];
+vbo[vertex_offset + k].vertex_intensity = lighting[1];
+#else
+glBufferSubData(
+    GL_ARRAY_BUFFER,
+    ((vertex_offset + k) * sizeof(gl_model_vertex)) + (sizeof(GLfloat) * 7),
+    (sizeof(GLfloat) * 2), (void *)&lighting);
+#endif
 #elif defined(RENDER_3DS_GL)
                 memcpy(game_model->gl_buffer->vbo +
                            ((vertex_offset + k) * sizeof(gl_model_vertex)) +
