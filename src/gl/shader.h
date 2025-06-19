@@ -1,54 +1,53 @@
-#ifndef SHADER_H
-#define SHADER_H
+#ifndef _H_VERTEX_BUFFER
+#define _H_VERTEX_BUFFER
+
+#include <stdlib.h>
+#include "../utility.h"
+
 #ifdef RENDER_GL
 
-#include <stdio.h>
-#include <stdlib.h>
-
-#ifdef GLAD
+#ifdef DREAMCAST
+#include <GL/gl.h>
+#elif defined(GLAD)
 #include <glad/glad.h>
 #else
 #include <GL/glew.h>
 #include <GL/glu.h>
 #endif
 
-#include <cglm/cglm.h>
-
-#include "../utility.h"
-
-#if defined(OPENGL15) && !defined(GLAD)
-#define glCreateShader glCreateShaderObjectARB
-#define glShaderSource glShaderSourceARB
-#define glCompileShader glCompileShaderARB
-#define glGetShaderiv glGetObjectParameterfvARB
-#define glGetShaderInfoLog glGetInfoLogARB
-#define glCreateProgram glCreateProgramObjectARB
-#define glAttachShader glAttachObjectARB
-#define glBindAttribLocation glBindAttribLocationARB
-#define glLinkProgram glLinkProgramARB
-#define glDeleteShader glDeleteObjectARB
-#define glUseProgram glUseProgramObjectARB
-#define glGetUniformLocation glGetUniformLocationARB
-#define glUniform1i glUniform1iARB
-#define glUniform1f glUniform1fARB
-#define glUniform1fv glUniform1fvARB
-#define glUniformMatrix4fv glUniformMatrix4fvARB
-#define glUniform3fv glUniform3fvARB
+#elif defined(RENDER_3DS_GL)
+#include <citro3d.h>
+#include <tex3ds.h>
 #endif
 
-typedef struct Shader {
-    int id;
-} Shader;
+typedef struct gl_vertex_buffer {
+    int vertex_length;
+    int attribute_index;
 
-void shader_new(Shader *shader, char *vertex_path, char *fragment_path);
-void shader_use(Shader *shader);
-void shader_set_int(Shader *shader, char *name, int value);
-void shader_set_float(Shader *shader, char *name, float value);
-void shader_set_float_array(Shader *shader, char *name, float *values,
-                            int length);
-void shader_set_mat4(Shader *shader, char *name, mat4 value);
-void shader_set_vec3(Shader *shader, char *name, vec3 value);
-void shader_set_vec3_array(Shader *shader, char *name, vec3 *values,
-                           int length);
+#if defined(RENDER_GL)
+  #ifdef GLDC_GL
+    void *vbo;
+    void *ebo;
+  #else
+    GLuint vao;
+    GLuint vbo;
+    GLuint ebo;
+  #endif
+#elif defined(RENDER_3DS_GL)
+    C3D_AttrInfo attr_info;
+    C3D_BufInfo buf_info;
+    void *vbo;
+    void *ebo;
 #endif
-#endif
+
+} gl_vertex_buffer;
+
+void vertex_buffer_gl_new(gl_vertex_buffer *vertex_buffer, int vertex_length,
+                          int vbo_length, int ebo_length);
+void vertex_buffer_gl_bind(gl_vertex_buffer *vertex_buffer);
+void vertex_buffer_gl_add_attribute(gl_vertex_buffer *vertex_buffer,
+                                    int *attribute_offset,
+                                    int attribute_length);
+void vertex_buffer_gl_destroy(gl_vertex_buffer *vertex_buffer);
+
+#endif  // _H_VERTEX_BUFFER
