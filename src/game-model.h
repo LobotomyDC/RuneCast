@@ -34,13 +34,20 @@ typedef struct gl_face_fill {
 #endif
 
 #ifdef RENDER_GL
-#ifdef GLAD
+
+#ifdef DREAMCAST
+#include <GL/gl.h>
+
+#elif defined(GLAD)
 #include <glad/glad.h>
+
 #else
 #include <GL/glew.h>
 #include <GL/glu.h>
+
 #endif
-#if !defined(SDL12) && !defined(__SWITCH__)
+
+#if !defined(SDL12) && !defined(__SWITCH__) && !defined(DREAMCAST)
 #include <SDL_opengl.h>
 #endif
 
