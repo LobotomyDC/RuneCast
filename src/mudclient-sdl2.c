@@ -1,5 +1,6 @@
 #include "mudclient.h"
 #include <kos/dbglog.h>
+#include <SDL.h>
 
 #ifdef SDL2
 void get_sdl_keycodes(SDL_Keysym *keysym, char *char_code, int *code) {
@@ -70,7 +71,7 @@ void get_sdl_keycodes(SDL_Keysym *keysym, char *char_code, int *code) {
 void mudclient_start_application(mudclient *mud, char *title) {
 #ifndef RENDER_GL
     // Prevent SDL2 from selecting OpenGL render backend unless explicitly requested
-    SDL_SetHint(SDL_HINT_RENDER_DRIVER, "Dreamcast PVR");
+    SDL_SetHint(SDL_HINT_RENDER_DRIVER, "OpenGL");
 #endif
 
     int init = SDL_INIT_VIDEO;
@@ -121,29 +122,30 @@ void mudclient_start_application(mudclient *mud, char *title) {
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+
 #elif defined(OPENGL15)
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 1);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
 
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK,
-                        SDL_GL_CONTEXT_PROFILE_CORE);
+    #if !defined(GLDC_GL)
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+    #endif
+
 #elif defined(OPENGL20)
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK,
-                        SDL_GL_CONTEXT_PROFILE_CORE);
 #else
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK,
-                        SDL_GL_CONTEXT_PROFILE_CORE);
-
+    // Optional: MSAA settings
     // SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
     // SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 4);
-#endif /* EMSCRIPTEN */
-#endif /* RENDER_GL */
+#endif
+#endif
 
     mud->window =
         SDL_CreateWindow(title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
@@ -158,11 +160,11 @@ void mudclient_start_application(mudclient *mud, char *title) {
     mud->gl_window = mud->window;
     mud->window = NULL;
 
-    if (IMG_Init(IMG_INIT_PNG) == 0) {
+/*    if (IMG_Init(IMG_INIT_PNG) == 0) {
         mud_error("unable to initialize sdl_image: %s\n", IMG_GetError());
-    }
+    }*/
 
-    SDL_GLContext *context = SDL_GL_CreateContext(mud->gl_window);
+    SDL_GLContext context = SDL_GL_CreateContext(mud->gl_window);
 
     if (!context) {
         mud_error("SDL_GL_CreateContext(): %s\n", SDL_GetError());
