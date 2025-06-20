@@ -194,12 +194,12 @@ void mudclient_poll_events(mudclient *mud) {
 
 
             // clamp
-/*            if (mud->mouse_x < 0) mud->mouse_x = 0;
+            if (mud->mouse_x < 0) mud->mouse_x = 0;
             if (mud->mouse_x >= MUD_WIDTH)  mud->mouse_x = MUD_WIDTH - 1;
             if (mud->mouse_y < 0) mud->mouse_y = 0;
             if (mud->mouse_y >= MUD_HEIGHT) mud->mouse_y = MUD_HEIGHT - 1;
 
-            mudclient_mouse_moved(mud, mud->mouse_x, mud->mouse_y);*/
+            mudclient_mouse_moved(mud, mud->mouse_x, mud->mouse_y);
         }
 
         // vertical right stick: axis 2 & 3 → camera/mouse-wheel emulation
@@ -245,10 +245,7 @@ void mudclient_start_application(mudclient *mud, char *title) {
     SDL_WM_SetCaption(title, NULL);
 
 #ifdef RENDER_SW
-    mud->screen = SDL_SetVideoMode(
-        mud->game_width, mud->game_height, 16,
-        SDL_HWSURFACE | SDL_FULLSCREEN | SDL_DOUBLEBUF
-    );
+    mud->screen = SDL_SetVideoMode(mud->game_width, mud->game_height, 16, SDL_HWSURFACE);//SDL_VIDEO_OPENGL
 #elif defined(RENDER_GL)
     mud->screen = SDL_SetVideoMode(
         mud->game_width, mud->game_height, 16,
