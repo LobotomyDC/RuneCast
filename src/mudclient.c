@@ -294,7 +294,7 @@ static void mudclient_start_application_common(struct mudclient *mud) {
 #endif
     printf("INFO: Loaded OpenGL version %d.%d\n", GLVersion.major,
            GLVersion.minor);
-#elif !defined(ANDROID)
+#elif !defined(ANDROID) && !defined(DREAMCAST)
     glewExperimental = GL_TRUE;
 
     GLenum glew_error = glewInit();
