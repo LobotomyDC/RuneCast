@@ -466,19 +466,29 @@ void surface_gl_buffer_quad(Surface *surface, gl_quad *quad, C3D_Tex *texture,
 #ifdef RENDER_GL
     vertex_buffer_gl_bind(&surface->gl_flat_buffer);
 
-    glBufferSubData(GL_ARRAY_BUFFER, vertex_offset, sizeof(gl_quad), quad);
+    GLuint indices[] = {
+        ebo_index, ebo_index + 1, ebo_index + 2,
+        ebo_index, ebo_index + 2, ebo_index + 3
+    };
 
-    GLuint indices[] = {ebo_index, ebo_index + 1, ebo_index + 2,
-                        ebo_index, ebo_index + 2, ebo_index + 3};
+    #ifdef DREAMCAST
+        memcpy((uint8_t *)surface->gl_flat_buffer.vbo + vertex_offset, quad, sizeof(gl_quad));
+        memcpy((uint8_t *)surface->gl_flat_buffer.ebo + surface->gl_flat_count * sizeof(indices),
+               indices, sizeof(indices));
+    #else
+        glBufferSubData(GL_ARRAY_BUFFER, vertex_offset, sizeof(gl_quad), quad);
+        glBufferSubData(GL_ELEMENT_ARRAY_BUFFER,
+                        surface->gl_flat_count * sizeof(indices), sizeof(indices),
+                        indices);
+    #endif
 
-    glBufferSubData(GL_ELEMENT_ARRAY_BUFFER,
-                    surface->gl_flat_count * sizeof(indices), sizeof(indices),
-                    indices);
 #elif defined(RENDER_3DS_GL)
     memcpy(surface->gl_flat_buffer.vbo + vertex_offset, quad, sizeof(gl_quad));
 
-    uint16_t indices[] = {ebo_index, ebo_index + 1, ebo_index + 2,
-                          ebo_index, ebo_index + 2, ebo_index + 3};
+    uint16_t indices[] = {
+        ebo_index, ebo_index + 1, ebo_index + 2,
+        ebo_index, ebo_index + 2, ebo_index + 3
+    };
 
     memcpy(surface->gl_flat_buffer.ebo +
                (surface->gl_flat_count * sizeof(indices)),
@@ -509,7 +519,6 @@ void surface_gl_buffer_quad(Surface *surface, gl_quad *quad, C3D_Tex *texture,
         context->base_texture = base_texture;
 
         context->use_depth = quad->bottom_left.z != 0;
-
         context->quad_count = 1;
 
         surface->gl_context_count++;
@@ -921,7 +930,7 @@ void surface_gl_draw(Surface *surface, GL_DEPTH_MODE depth_mode) {
         GLuint texture = context->texture;
 
         if (texture != last_texture) {
-            glActiveTexture(GL_TEXTURE0);
+//            glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, texture);
 
             last_texture = texture;
@@ -930,7 +939,7 @@ void surface_gl_draw(Surface *surface, GL_DEPTH_MODE depth_mode) {
         GLuint base_texture = context->base_texture;
 
         if (base_texture != last_base_texture) {
-            glActiveTexture(GL_TEXTURE0 + 1);
+//            glActiveTexture(GL_TEXTURE0 + 1);
             glBindTexture(GL_TEXTURE_2D, base_texture);
 
             last_base_texture = base_texture;
@@ -4410,8 +4419,13 @@ void surface_gl_create_framebuffer(Surface *surface) {
 void surface_gl_update_dynamic_texture(Surface *surface) {
     glBindTexture(GL_TEXTURE_2D, surface->gl_dynamic_texture);
 
+#ifdef DREAMCAST
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1024, 1024, 0, GL_RGBA,
+                 GL_UNSIGNED_BYTE, surface->gl_dynamic_texture_buffer);
+#else
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 1024, 1024, 0, GL_RGB,
                  GL_UNSIGNED_BYTE, surface->gl_dynamic_texture_buffer);
+#endif
 }
 #endif
 
